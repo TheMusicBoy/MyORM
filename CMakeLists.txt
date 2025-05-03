@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(Lab5)
+project(MyORM)
 
 # Enable CTest
 include(CTest)
@@ -16,7 +16,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 add_subdirectory(thirdparty)
 add_subdirectory(lib)
 add_subdirectory(master)
-add_subdirectory(orm)
+add_subdirectory(core)
 add_subdirectory(migrator)
 add_subdirectory(tests)
 
