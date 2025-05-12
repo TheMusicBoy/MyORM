@@ -226,6 +226,12 @@ FormatOptions FormatOptions::GetSubOptions(const std::string& prefix) const {
     return result;
 }
 
+FormatOptions FormatOptions::Merge(FormatOptions other) const {
+    FormatOptions temp = *this;
+    temp.options_.merge(other.options_);
+    return temp;
+}
+
 void FormatOptions::ParseFromString(const std::string& modifierStr) {
     if (modifierStr.empty()) {
         return;

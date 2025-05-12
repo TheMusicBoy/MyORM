@@ -172,6 +172,8 @@ public:
     void Set(const std::string& key, const FormatOptions& value);
     
     FormatOptions GetSubOptions(const std::string& prefix) const;
+
+    FormatOptions Merge(FormatOptions other) const;
     
 private:
     void ParseFromString(const std::string& modifierStr);
