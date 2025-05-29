@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+import "object_base.proto";
+import "google/protobuf/descriptor.proto";
+
+message TestObjectSpec {
+  option (orm.in_place) = true;
+  option (orm.message_lock_group) = "spec";
+  
+  string name = 1;
+  string description = 2;
+  int32 priority = 3;
+  repeated string tags = 4;
+  
+  message Configuration {
+    int32 timeout_seconds = 1;
+    bool enable_notifications = 2;
+  }
+  Configuration config = 5;
+}
+
+message TestObjectStatus {
+  option (orm.in_place) = true;
+  option (orm.message_lock_group) = "status";
+  
+  enum State {
+    UNKNOWN = 0;
+    PENDING = 1;
+    ACTIVE = 2;
+    COMPLETED = 3;
+    FAILED = 4;
+  }
+  State state = 1;
+  string message = 2;
+  int64 last_updated = 3;
+  int32 progress_percentage = 4;
+}
+
+message TestObject {
+    option (orm.object_type) = {
+      camel_case_name: "TestObject"
+      snake_case_name: "test_object"
+      custom_type_handler: true
+      type_value: 1
+    };
+
+
+    TestObjectSpec spec = 2;
+    TestObjectStatus status = 3;
+}

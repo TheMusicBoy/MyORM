@@ -17,8 +17,7 @@ function(add_test_ex test_name)
     
     # Include directories
     target_include_directories(${test_name} PRIVATE 
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/src
+        ${PROJECT_SOURCE_DIR}
     )
     
     # Add test to CTest

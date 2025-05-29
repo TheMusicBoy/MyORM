@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+import "google/protobuf/descriptor.proto";
+
+package orm;
+
+message ObjectTypeOptions {
+  string camel_case_name = 1;
+  string snake_case_name = 2;
+  bool custom_type_handler = 4;
+  int32 type_value = 5;
+}
+
+extend google.protobuf.MessageOptions {
+  ObjectTypeOptions object_type = 50000;
+}
+
+enum GenerationPolicy {
+  GP_AUTO = 0;
+  GP_MANUAL = 1;
+}
+
+message FieldOptions {
+  GenerationPolicy generation_policy = 1;
+  string storage_type = 2;
+}
+
+extend google.protobuf.FieldOptions {
+  FieldOptions field_options = 50001;
+}
+
+extend google.protobuf.MessageOptions {
+  bool in_place = 50002;
+  string message_lock_group = 50003;
+}
+
+message ObjectMeta {
+  string id = 1;
+  string parent_id = 2;
+  string parent_type = 3;
+  
+  message ACLEntry {
+    string principal = 1;
+    enum Permission {
+      NONE = 0;
+      READ = 1;
+      WRITE = 2;
+      ADMIN = 3;
+    }
+    Permission permission = 2;
+  }
+  repeated ACLEntry acl = 4;
+  
+  int64 created_at = 5;
+  int64 updated_at = 6;
+  string created_by = 7;
+  string updated_by = 8;
+  string version = 9;
+}

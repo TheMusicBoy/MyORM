@@ -10,7 +10,6 @@ void TTableConfig::Load(const TJsonData& data) {
     CamelCase = NCommon::TConfigBase::LoadRequired<std::string>(data, "camel_case");
 
     Scheme = NCommon::TConfigBase::LoadRequired<std::string>(data, "scheme");
-    CustomTypeHandler = NCommon::TConfigBase::Load<bool>(data, "custom_type_handler", false);
 
 }
 

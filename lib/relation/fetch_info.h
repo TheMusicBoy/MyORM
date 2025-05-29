@@ -5,11 +5,11 @@
 #include <common/format.h>
 
 #include <google/protobuf/descriptor.h>
-#include <string>
-#include <vector>
-#include <unordered_map>
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <variant>
+#include <vector>
 
 namespace NOrm::NRelation {
 
@@ -31,25 +31,19 @@ struct TFieldTypeInfo {
 
 using TFieldTypeInfoPtr = std::shared_ptr<TFieldTypeInfo>;
 
-struct TSingularFieldInfo
-    : public TFieldTypeInfo
-{
+struct TSingularFieldInfo : public TFieldTypeInfo {
     constexpr EFieldType GetFieldType() const override {
         return EFieldType::SINGULAR;
     }
 };
 
-struct TRepeatedFieldInfo
-    : public TFieldTypeInfo
-{
+struct TRepeatedFieldInfo : public TFieldTypeInfo {
     constexpr EFieldType GetFieldType() const override {
         return EFieldType::REPEATED;
     }
 };
 
-struct TMapFieldInfo
-    : public TFieldTypeInfo
-{
+struct TMapFieldInfo : public TFieldTypeInfo {
     constexpr EFieldType GetFieldType() const override {
         return EFieldType::MAP;
     }
@@ -57,17 +51,13 @@ struct TMapFieldInfo
     google::protobuf::FieldDescriptor::Type KeyType;
 };
 
-struct TOptionalFieldInfo
-    : public TFieldTypeInfo
-{
+struct TOptionalFieldInfo : public TFieldTypeInfo {
     constexpr EFieldType GetFieldType() const override {
         return EFieldType::OPTIONAL;
     }
 };
 
-struct TOneofFieldInfo
-    : public TFieldTypeInfo
-{
+struct TOneofFieldInfo : public TFieldTypeInfo {
     constexpr EFieldType GetFieldType() const override {
         return EFieldType::ONEOF;
     }
@@ -93,7 +83,7 @@ struct TMessagePathEntry {
  * other paths or entries.
  */
 class TMessagePath {
-public:
+  public:
     // Default constructor
     TMessagePath() = default;
 
@@ -105,7 +95,8 @@ public:
 
     // Constructor that initializes with a range of elements
     template <typename It>
-    TMessagePath(It begin, It end) : Path_(begin, end) {}
+    TMessagePath(It begin, It end)
+        : Path_(begin, end) {}
 
     // Copy constructor
     TMessagePath(const TMessagePath& other);
@@ -137,7 +128,8 @@ public:
     // Get TMessagePath resulting from concatenation with a TMessagePathEntry
     TMessagePath operator/(const TMessagePathEntry& entry) const;
 
-    // Get TMessagePath resulting from concatenation with a protobuf FieldDescriptor
+    // Get TMessagePath resulting from concatenation with a protobuf
+    // FieldDescriptor
     TMessagePath operator/(const google::protobuf::FieldDescriptor* desc) const;
 
     // Check if the path is empty
@@ -154,40 +146,38 @@ public:
 
     const std::vector<TMessagePathEntry>& data() const;
 
-private:
+  private:
     std::vector<TMessagePathEntry> Path_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
 class TMessageBase {
- public:
-    TMessageBase(const TMessagePath& path);
-    TMessageBase(const TMessagePath& path, TMessagePathEntry entry);
-
-    const TMessagePath& GetPath() const;
+  public:
+    virtual const TMessagePath& GetPath() const = 0;
     std::string GetTableName() const;
-
- protected:
-    TMessagePath Path_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @class TFieldBase
- * @brief A base class for fields representing a specific data type in a protocol buffer context.
- * 
- * This class provides basic functionality to manage field properties such as field number,
- * name, value type, and field type.
+ * @brief A base class for fields representing a specific data type in a
+ * protocol buffer context.
+ *
+ * This class provides basic functionality to manage field properties such as
+ * field number, name, value type, and field type.
  */
-class TFieldBase
-    : public TMessageBase
-{
-public:
+class TFieldBase : virtual public TMessageBase {
+  public:
     // Constructor
-    TFieldBase(int fieldNumber, const std::string& name, const TMessagePath& path, 
-              google::protobuf::FieldDescriptor::Type type, TFieldTypeInfoPtr fieldTypeInfo);
+    TFieldBase(
+        int fieldNumber,
+        const std::string& name,
+        const TMessagePath& path,
+        google::protobuf::FieldDescriptor::Type type,
+        TFieldTypeInfoPtr fieldTypeInfo
+    );
 
     // Constructor from FieldDescriptor
     TFieldBase(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path);
@@ -196,29 +186,33 @@ public:
     const std::string& GetName() const;
     google::protobuf::FieldDescriptor::Type GetValueType() const;
     EFieldType GetFieldType() const;
+    const TMessagePath& GetPath() const override;
 
-protected:
+  protected:
     int FieldNumber_;
     std::string Name_;
     google::protobuf::FieldDescriptor::Type ValueType_;
     TFieldTypeInfoPtr FieldTypeInfo_;
+    TMessagePath Path_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class TRootBase
-    : public TMessageBase
-{
-public:
+class TRootBase : virtual public TMessageBase {
+  public:
     TRootBase(TTableConfigPtr config);
-    
-private:
+
+    const TMessagePath& GetPath() const override;
+
+    const google::protobuf::Descriptor* GetDescriptor() const;
+
+  private:
     int Number_;
     std::string CamelCase_;
     std::string SnakeCase_;
 
+    TMessagePath Path_;
     const google::protobuf::Descriptor* Descriptor_;
-    bool CustomTypeHandler_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -274,36 +268,32 @@ struct TEnumFieldInfo {
     google::protobuf::EnumDescriptor* descriptor;
 };
 
+using TValueInfo = std::variant<
+    std::monostate,
+    TBoolFieldInfo,
+    TInt32FieldInfo,
+    TUInt32FieldInfo,
+    TInt64FieldInfo,
+    TUInt64FieldInfo,
+    TFloatFieldInfo,
+    TDoubleFieldInfo,
+    TStringFieldInfo,
+    TBytesFieldInfo,
+    TEnumFieldInfo>;
+
 // Field type information structure
-class TPrimitiveFieldInfo
-    : public TFieldBase
-{
-public:
+class TPrimitiveFieldInfo : public TFieldBase {
+  public:
     // Accessor for DefaultValueString_
     const std::string& GetDefaultValueString() const;
 
     // Accessor for TypeInfo_
-    const std::variant<
-        std::monostate,
-        TBoolFieldInfo,
-        TInt32FieldInfo,
-        TUInt32FieldInfo,
-        TInt64FieldInfo,
-        TUInt64FieldInfo,
-        TFloatFieldInfo,
-        TDoubleFieldInfo,
-        TStringFieldInfo,
-        TBytesFieldInfo,
-        TEnumFieldInfo
-    >& GetTypeInfo() const;
-    
-    // Constructor from google::protobuf::FieldDescriptor*
-    TPrimitiveFieldInfo(
-        const google::protobuf::FieldDescriptor* fieldDescriptor,
-        const TMessagePath& path
-    );
+    const TValueInfo& GetTypeInfo() const;
 
-private:
+    // Constructor from google::protobuf::FieldDescriptor*
+    TPrimitiveFieldInfo(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path);
+
+  private:
     void HandleBoolField(const google::protobuf::FieldDescriptor* field);
     void HandleInt32Field(const google::protobuf::FieldDescriptor* field);
     void HandleUInt32Field(const google::protobuf::FieldDescriptor* field);
@@ -318,42 +308,171 @@ private:
     std::string DefaultValueString_;
 
     // Type-dependent field information using std::variant
-    std::variant<
-        std::monostate,
-        TBoolFieldInfo,
-        TInt32FieldInfo,
-        TUInt32FieldInfo,
-        TInt64FieldInfo,
-        TUInt64FieldInfo,
-        TFloatFieldInfo,
-        TDoubleFieldInfo,
-        TStringFieldInfo,
-        TBytesFieldInfo,
-        TEnumFieldInfo
-    > TypeInfo_;
+    TValueInfo TypeInfo_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct TOneofInfo {
-    int index;
-    std::string name;
-    std::vector<int> relatedFields;
-};
+class TFieldMessage;
 
-class TMessageInfo
-    : public TMessageBase
-{
+class TMessageInfo : virtual public TMessageBase {
 public:
-    TMessageInfo(const google::protobuf::Descriptor* descriptor, const TMessagePath& path, const TMessagePathEntry& entry);
+    class TPrimitiveFieldIterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = TPrimitiveFieldInfo*;
+        using difference_type = std::ptrdiff_t;
+        using pointer = TPrimitiveFieldInfo**;
+        using reference = TPrimitiveFieldInfo*&;
+
+        TPrimitiveFieldIterator(
+            std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it,
+            std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end,
+            const std::unordered_set<int>& subMessages
+        );
+
+        TPrimitiveFieldIterator& operator++();
+        TPrimitiveFieldIterator operator++(int);
+        bool operator==(const TPrimitiveFieldIterator& other) const;
+        bool operator!=(const TPrimitiveFieldIterator& other) const;
+        TPrimitiveFieldInfo* operator*() const;
+        TPrimitiveFieldInfo* operator->() const;
+
+    private:
+        void skipMessageFields();
+
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it_;
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end_;
+        const std::unordered_set<int>& subMessages_;
+    };
+
+    class TMessageFieldIterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = TFieldMessage*;
+        using difference_type = std::ptrdiff_t;
+        using pointer = TFieldMessage**;
+        using reference = TFieldMessage*&;
+
+        TMessageFieldIterator(
+            std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it,
+            std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end,
+            const std::unordered_set<int>& subMessages
+        );
+
+        TMessageFieldIterator& operator++();
+        TMessageFieldIterator operator++(int);
+        bool operator==(const TMessageFieldIterator& other) const;
+        bool operator!=(const TMessageFieldIterator& other) const;
+        TFieldMessage* operator*() const;
+        TFieldMessage* operator->() const;
+
+    private:
+        void skipNonMessageFields();
+
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it_;
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end_;
+        const std::unordered_set<int>& subMessages_;
+    };
+
+    class TFieldIterator {
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = TFieldBase*;
+        using difference_type = std::ptrdiff_t;
+        using pointer = TFieldBase**;
+        using reference = TFieldBase*&;
+
+        TFieldIterator(std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it);
+
+        TFieldIterator& operator++();
+        TFieldIterator operator++(int);
+        bool operator==(const TFieldIterator& other) const;
+        bool operator!=(const TFieldIterator& other) const;
+        TFieldBase* operator*() const;
+        TFieldBase* operator->() const;
+
+    private:
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it_;
+    };
+
+    class TPrimitiveFieldsRange {
+    public:
+        TPrimitiveFieldsRange(
+            std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields,
+            const std::unordered_set<int>& subMessages
+        );
+
+        TPrimitiveFieldIterator begin();
+        TPrimitiveFieldIterator end();
+
+    private:
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields_;
+        const std::unordered_set<int>& subMessages_;
+    };
+
+    class TMessageFieldsRange {
+    public:
+        TMessageFieldsRange(
+            std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields,
+            const std::unordered_set<int>& subMessages
+        );
+
+        TMessageFieldIterator begin();
+        TMessageFieldIterator end();
+
+    private:
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields_;
+        const std::unordered_set<int>& subMessages_;
+    };
+
+    class TFieldsRange {
+    public:
+        TFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields);
+
+        TFieldIterator begin();
+        TFieldIterator end();
+
+    private:
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields_;
+    };
+
+    // Метод для получения диапазона всех полей
+    TFieldsRange Fields();
+
+    // Метод для получения диапазона только примитивных полей
+    TPrimitiveFieldsRange PrimitiveFields();
+
+    // Метод для получения диапазона только полей-сообщений
+    TMessageFieldsRange MessageFields();
+
+    TMessageInfo(const google::protobuf::Descriptor* descriptor);
 
 protected:
-    void Process(const google::protobuf::Descriptor* descriptor);
+    void Process();
 
     std::string MessageName_;
     std::unordered_map<int, std::unique_ptr<TFieldBase>> Fields_;
     std::unordered_set<int> SubMessages_;
-    std::unordered_map<int, TOneofInfo> OneofInfo_;
+    const google::protobuf::Descriptor* Descriptor_;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+class TFieldMessage : public TFieldBase, public TMessageInfo {
+  public:
+    TFieldMessage(const google::protobuf::FieldDescriptor* descriptor, const TMessagePath& path)
+        : TFieldBase(descriptor, path),
+          TMessageInfo(descriptor->message_type()) {}
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+class TRootMessage : public TRootBase, public TMessageInfo {
+  public:
+    TRootMessage(TTableConfigPtr config)
+        : TRootBase(config),
+          TMessageInfo(GetDescriptor()) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////

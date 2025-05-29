@@ -16,4 +16,13 @@ add_test_ex(common_test
         common
 )
 
+# add_test_ex(master_test
+#     SOURCES
+#         ${TESTROOT}/master/postgresql_test.cpp
+#     DEPENDS
+#         common
+#         object_base
+#         master_service
+# )
+
 message(STATUS "Test framework configured")

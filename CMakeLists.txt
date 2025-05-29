@@ -15,7 +15,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 # Building ---
 add_subdirectory(thirdparty)
 add_subdirectory(lib)
-add_subdirectory(master)
+# add_subdirectory(master)
 add_subdirectory(core)
 add_subdirectory(migrator)
 add_subdirectory(tests)

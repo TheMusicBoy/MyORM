@@ -15,7 +15,6 @@ public:
     std::string CamelCase;
 
     std::string Scheme;
-    bool CustomTypeHandler;
 
     void Load(const TJsonData& data) override;
 };
