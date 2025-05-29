@@ -1,7 +1,11 @@
 set(SRCROOT "${PROJECT_SOURCE_DIR}/lib/relation")
 
 set(SRC
-    ${SRCROOT}/fetch_info.cpp
+    ${SRCROOT}/path.cpp
+    ${SRCROOT}/base.cpp
+    ${SRCROOT}/message.cpp
+    ${SRCROOT}/field.cpp
+    ${SRCROOT}/config.cpp
 
 )
 
