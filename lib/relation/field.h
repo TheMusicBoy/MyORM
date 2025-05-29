@@ -81,6 +81,10 @@ class TPrimitiveFieldInfo : public TFieldBase {
     // Accessor for TypeInfo_
     const TValueInfo& GetTypeInfo() const;
 
+    bool IsMessage() const override {
+        return false;
+    }
+
     // Constructor from google::protobuf::FieldDescriptor*
     TPrimitiveFieldInfo(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path);
 
@@ -100,6 +104,46 @@ class TPrimitiveFieldInfo : public TFieldBase {
 
     // Type-dependent field information using std::variant
     TValueInfo TypeInfo_;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+class TPrimitiveFieldIterator {
+  public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = TPrimitiveFieldInfo*;
+    using difference_type = std::ptrdiff_t;
+    using pointer = TPrimitiveFieldInfo**;
+    using reference = TPrimitiveFieldInfo*&;
+
+    TPrimitiveFieldIterator(
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it,
+        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end
+    );
+
+    TPrimitiveFieldIterator& operator++();
+    TPrimitiveFieldIterator operator++(int);
+    bool operator==(const TPrimitiveFieldIterator& other) const;
+    bool operator!=(const TPrimitiveFieldIterator& other) const;
+    TPrimitiveFieldInfo* operator*() const;
+    TPrimitiveFieldInfo* operator->() const;
+
+  private:
+    void skipMessageFields();
+
+    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it_;
+    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end_;
+};
+
+class TPrimitiveFieldsRange {
+  public:
+    TPrimitiveFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields);
+
+    TPrimitiveFieldIterator begin();
+    TPrimitiveFieldIterator end();
+
+  private:
+    std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

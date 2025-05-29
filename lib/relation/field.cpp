@@ -110,4 +110,60 @@ void TPrimitiveFieldInfo::HandleEnumField(const google::protobuf::FieldDescripto
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Реализация TPrimitiveFieldIterator
+void TPrimitiveFieldIterator::skipMessageFields() {
+    while (it_ != end_ && it_->second->IsMessage()) {
+        ++it_;
+    }
+}
+
+TPrimitiveFieldIterator::TPrimitiveFieldIterator(
+    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it,
+    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end)
+    : it_(it), end_(end)  {
+    skipMessageFields();
+}
+
+TPrimitiveFieldIterator& TPrimitiveFieldIterator::operator++() {
+    ++it_;
+    skipMessageFields();
+    return *this;
+}
+
+TPrimitiveFieldIterator TPrimitiveFieldIterator::operator++(int) {
+    TPrimitiveFieldIterator tmp = *this;
+    ++(*this);
+    return tmp;
+}
+
+bool TPrimitiveFieldIterator::operator==(const TPrimitiveFieldIterator& other) const {
+    return it_ == other.it_;
+}
+
+bool TPrimitiveFieldIterator::operator!=(const TPrimitiveFieldIterator& other) const {
+    return !(*this == other);
+}
+
+TPrimitiveFieldInfo* TPrimitiveFieldIterator::operator*() const {
+    return static_cast<TPrimitiveFieldInfo*>(it_->second.get());
+}
+
+TPrimitiveFieldInfo* TPrimitiveFieldIterator::operator->() const {
+    return static_cast<TPrimitiveFieldInfo*>(it_->second.get());
+}
+
+// Реализация TPrimitiveFieldsRange
+TPrimitiveFieldsRange::TPrimitiveFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields)
+    : fields_(fields) {}
+
+TPrimitiveFieldIterator TPrimitiveFieldsRange::begin() {
+    return TPrimitiveFieldIterator(fields_.begin(), fields_.end());
+}
+
+TPrimitiveFieldIterator TPrimitiveFieldsRange::end() {
+    return TPrimitiveFieldIterator(fields_.end(), fields_.end());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 } // namespace NOrm::NRelation

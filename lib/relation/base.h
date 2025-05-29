@@ -1,7 +1,7 @@
 #pragma once
 
-#include <relation/path.h>
 #include <relation/config.h>
+#include <relation/path.h>
 
 namespace NOrm::NRelation {
 
@@ -92,6 +92,7 @@ class TFieldBase : virtual public TMessageBase {
     TFieldBase(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path);
 
     int GetFieldNumber() const;
+    virtual bool IsMessage() const = 0;
     const std::string& GetName() const;
     google::protobuf::FieldDescriptor::Type GetValueType() const;
     EFieldType GetFieldType() const;
@@ -122,6 +123,42 @@ class TRootBase : virtual public TMessageBase {
 
     TMessagePath Path_;
     const google::protobuf::Descriptor* Descriptor_;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+class TFieldIterator {
+  public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = TFieldBase*;
+    using difference_type = std::ptrdiff_t;
+    using pointer = TFieldBase**;
+    using reference = TFieldBase*&;
+
+    TFieldIterator(std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it);
+
+    TFieldIterator& operator++();
+    TFieldIterator operator++(int);
+    bool operator==(const TFieldIterator& other) const;
+    bool operator!=(const TFieldIterator& other) const;
+    TFieldBase* operator*() const;
+    TFieldBase* operator->() const;
+
+  private:
+    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it_;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+
+class TFieldsRange {
+public:
+    TFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields);
+
+    TFieldIterator begin();
+    TFieldIterator end();
+
+private:
+    std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

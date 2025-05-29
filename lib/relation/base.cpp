@@ -100,4 +100,50 @@ TFieldTypeInfoPtr GetFieldTypeInfo(const google::protobuf::FieldDescriptor* desc
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Реализация TFieldIterator
+TFieldIterator::TFieldIterator(std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it)
+    : it_(it) {}
+
+TFieldIterator& TFieldIterator::operator++() {
+    ++it_;
+    return *this;
+}
+
+TFieldIterator TFieldIterator::operator++(int) {
+    TFieldIterator tmp = *this;
+    ++(*this);
+    return tmp;
+}
+
+bool TFieldIterator::operator==(const TFieldIterator& other) const {
+    return it_ == other.it_;
+}
+
+bool TFieldIterator::operator!=(const TFieldIterator& other) const {
+    return !(*this == other);
+}
+
+TFieldBase* TFieldIterator::operator*() const {
+    return it_->second.get();
+}
+
+TFieldBase* TFieldIterator::operator->() const {
+    return it_->second.get();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TFieldsRange::TFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields)
+    : fields_(fields) {}
+
+TFieldIterator TFieldsRange::begin() {
+    return TFieldIterator(fields_.begin());
+}
+
+TFieldIterator TFieldsRange::end() {
+    return TFieldIterator(fields_.end());
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 } // namespace NOrm::NRelation
