@@ -1,15 +1,63 @@
-#include <relation/message.h>
 #include <relation/field.h>
+#include <relation/message.h>
+#include <relation/relation_manager.h>
 
 namespace NOrm::NRelation {
+
+namespace {
+
+////////////////////////////////////////////////////////////////////////////////
+
+TFieldBasePtr RegisterPrimitiveField(const google::protobuf::FieldDescriptor* desc, TMessagePath path) {
+    if (!desc) {
+        return nullptr;
+    }
+
+    auto field = std::make_shared<TPrimitiveFieldInfo>(desc, path);
+    TRelationManager::GetInstance().RegisterField(field);
+    return field;
+}
+
+TFieldBasePtr RegisterMessageField(const google::protobuf::FieldDescriptor* desc, TMessagePath path) {
+    if (!desc) {
+        return nullptr;
+    }
+
+    auto field = std::make_shared<TFieldMessage>(desc, path);
+
+    auto& relationManager = TRelationManager::GetInstance();
+    auto parentMessage = relationManager.GetMessage(path);
+
+    relationManager.RegisterMessage(field);
+
+    if (parentMessage) {
+        relationManager.SetParentMessage(field, parentMessage);
+    }
+
+    return field;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+} // namespace
+
+////////////////////////////////////////////////////////////////////////////////
+
+void RegisterRootMessage(TTableConfigPtr config) {
+    if (!config) {
+        return;
+    }
+
+    auto rootMessage = std::make_shared<TRootMessage>(config);
+
+    TRelationManager::GetInstance().RegisterMessage(rootMessage);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
 // TMessageInfo implementation
 TMessageInfo::TMessageInfo(const google::protobuf::Descriptor* descriptor)
-    : Descriptor_(descriptor) {
-    Process();
-}
+    : Descriptor_(descriptor) {}
 
 void TMessageInfo::Process() {
     if (!Descriptor_) {
@@ -23,23 +71,20 @@ void TMessageInfo::Process() {
 
         if (field->type() == google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
             SubMessages_.insert(field->number());
-            Fields_[field->number()] = std::make_unique<TFieldMessage>(field, this->GetPath());
+            Fields_[field->number()] = RegisterMessageField(field, this->GetPath());
         } else {
-            Fields_[field->number()] = std::make_unique<TPrimitiveFieldInfo>(field, this->GetPath());
+            Fields_[field->number()] = RegisterPrimitiveField(field, this->GetPath());
         }
     }
 }
-// Реализация TMessageFieldIterator
+// Implementation of TMessageFieldIterator
 void TMessageFieldIterator::skipNonMessageFields() {
     while (it_ != end_ && !it_->second->IsMessage()) {
         ++it_;
     }
 }
 
-TMessageFieldIterator::TMessageFieldIterator(
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it,
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end
-)
+TMessageFieldIterator::TMessageFieldIterator(std::map<int, TFieldBasePtr>::iterator it, std::map<int, TFieldBasePtr>::iterator end)
     : it_(it),
       end_(end) {
     skipNonMessageFields();
@@ -65,16 +110,16 @@ bool TMessageFieldIterator::operator!=(const TMessageFieldIterator& other) const
     return !(*this == other);
 }
 
-TFieldMessage* TMessageFieldIterator::operator*() const {
-    return static_cast<TFieldMessage*>(it_->second.get());
+TFieldMessagePtr TMessageFieldIterator::operator*() const {
+    return std::static_pointer_cast<TFieldMessage>(it_->second);
 }
 
-TFieldMessage* TMessageFieldIterator::operator->() const {
-    return static_cast<TFieldMessage*>(it_->second.get());
+TFieldMessagePtr TMessageFieldIterator::operator->() const {
+    return std::static_pointer_cast<TFieldMessage>(it_->second);
 }
 
-// Реализация TMessageFieldsRange
-TMessageFieldsRange::TMessageFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields)
+// Implementation of TMessageFieldsRange
+TMessageFieldsRange::TMessageFieldsRange(std::map<int, TFieldBasePtr>& fields)
     : fields_(fields) {}
 
 TMessageFieldIterator TMessageFieldsRange::begin() {
@@ -85,7 +130,7 @@ TMessageFieldIterator TMessageFieldsRange::end() {
     return TMessageFieldIterator(fields_.end(), fields_.end());
 }
 
-// Реализация методов доступа к диапазонам
+// Implementation of range access methods
 TFieldsRange TMessageInfo::Fields() {
     return TFieldsRange(Fields_);
 }
@@ -101,3 +146,4 @@ TMessageFieldsRange TMessageInfo::MessageFields() {
 ////////////////////////////////////////////////////////////////////////////////
 
 } // namespace NOrm::NRelation
+

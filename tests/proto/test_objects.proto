@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+import "lib/relation/proto/orm_core.proto";
+
+package test_objects;
+
+message SimpleMessage {
+  int32 id = 1 [(orm.unique) = true, (orm.primary_key) = true, (orm.auto_increment) = true];
+  string name = 2 [(orm.required) = true];
+  bool active = 3 [(orm.default_bool) = true];
+}
+
+message NestedMessage {
+  int32 id = 1 [(orm.unique) = true, (orm.primary_key) = true, (orm.auto_increment) = true];
+  SimpleMessage simple = 2 [(orm.required) = true];
+  repeated string tags = 3;
+  map<string, int32> metadata = 4;
+}
+
+message DeepNestedMessage {
+  int32 id = 1 [(orm.unique) = true, (orm.primary_key) = true, (orm.auto_increment) = true];
+  NestedMessage nested = 2 [(orm.required) = true];
+  oneof data {
+    string text_data = 3;
+    int32 numeric_data = 4;
+  }
+  optional double optional_value = 5 [(orm.unique) = true];
+}

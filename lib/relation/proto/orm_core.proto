@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package orm;
+
+import "google/protobuf/descriptor.proto";
+
+// Расширения для ORM опций полей
+extend google.protobuf.FieldOptions {
+  // Уникальное поле
+  optional bool unique = 50001;
+  
+  // Обязательное поле (дополнительно к required в proto2)
+  optional bool required = 50002;
+  
+  // Первичный ключ
+  optional bool primary_key = 50003;
+
+  optional bool auto_increment = 50004;
+  
+  optional bool default_bool = 50005;
+  optional int32 default_int32 = 50006;
+  optional uint32 default_uint32 = 50007;
+  optional int64 default_int64 = 50008;
+  optional uint64 default_uint64 = 50009;
+  optional float default_float = 50010;
+  optional double default_double = 50011;
+  optional string default_string = 50012;
+  optional bytes default_bytes = 50013;
+  optional string default_enum = 50014;
+}
+
+// Пример использования:
+// message User {
+//   option (orm.table_name) = "users";
+//   
+//   int64 id = 1 [(orm.primary_key) = true, (orm.auto_increment) = true];
+//   string username = 2 [(orm.unique) = true, (orm.required) = true, (orm.max_length) = 100];
+//   string email = 3 [(orm.unique) = true, (orm.index) = true];
+//   string password_hash = 4 [(orm.required) = true];
+// }

@@ -1,12 +1,13 @@
-include(${PROJECT_SOURCE_DIR}/cmake/ProtoGen.cmake)
-
 set(SRCROOT "${PROJECT_SOURCE_DIR}/lib/rpc")
 
-add_protobuf_library(rpc_proto
-    PROTO_FILES
-        proto/http.proto
-    OUTPUT_DIR
-        ${PROJECT_SOURCE_DIR}/lib/rpc/proto
+include(ProtoGen)
+
+generate_protobuf_grpc(rpc_proto
+SOURCES
+    ${SRCROOT}/proto/http.proto
+    ${SRCROOT}/proto/query.proto
+DEPENDS
+    relation_proto
 )
 
 set(SRC

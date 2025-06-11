@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+import "lib/relation/proto/query.proto";
+
+package NOrm.NApi;
+
+// Standart values
+message TString {
+    string value = 1;
+}
+
+message TInt {
+    int32 value = 1;
+}
+
+message TFloat {
+    float value = 1;
+}
+
+message TBool {
+    bool value = 1;
+}
+
+message TDefault {}
+
+// Select expressions
+message TAll {}
+
+message TColumn {
+    repeated uint32 field_path = 1;
+    NOrm.NQuery.EColumnType type = 2;
+}
+
+message TExpression {
+    NOrm.NQuery.EExpressionType expression_type = 1;
+    repeated int32 operands = 2;
+}
+
+message TSelect {
+    repeated int32 selectors = 1;
+    optional int32 where = 2;
+    optional int32 group_by = 3;
+    optional int32 having = 4;
+    optional int32 order_by = 5;
+    optional int32 limit = 6;
+}
+
+// Values
+message TValueRow {
+    repeated uint32 values = 1;
+}
+
+message TDefaultValueList {}
+
+message TValueRows {
+    repeated TValueRow rows = 1;
+}
+
+// Set field values
+message TUpdateField {
+    int32 column_path = 1;
+    int32 expression = 2;
+}
+
+// Conflicts
+message TDoNothing {};
+
+message TDoUpdate {
+    repeated TUpdateField updates = 1;
+}
+
+message TInsert {
+    repeated int32 selectors = 1;
+    int32 values = 2;
+    int32 on_conflict = 3;
+}
+
+// Update
+message TUpdate {
+    repeated TUpdateField updates = 1;
+    optional int32 where = 2;
+}
+
+// Delete
+message TDelete {
+    optional int32 where = 1;
+}
+
+// Truncate operation
+message TTruncate {
+    int32 table_num = 1;
+}
+
+// Transaction operations
+message TStartTransaction {
+    bool read_only = 1;
+}
+
+message TCommitTransaction {
+}
+
+message TRollbackTransaction {
+}
+
+message TClause {
+    oneof value {
+        TSelect select = 1;
+        TInsert insert = 2;
+        TUpdate update = 3;
+        TDelete delete = 4;
+        TTruncate truncate = 5;
+        TStartTransaction start_transaction = 9;
+        TCommitTransaction commit_transaction = 10;
+        TRollbackTransaction rollback_transaction = 11;
+
+        TString string = 21;
+        TInt integer = 22;
+        TFloat float = 23;
+        TBool bool = 24;
+        TExpression expression = 25;
+        TDefault default = 26;
+
+        TColumn column = 31;
+        TAll all = 32;
+
+        TValueRows value_rows = 41;
+        TDefaultValueList default_values = 42;
+        TDoNothing do_nothing = 43;
+        TDoUpdate do_update = 44;
+
+    }
+}
+
+message TQuery {
+    repeated TClause clauses = 1;
+    repeated int32 start_points = 2;
+}

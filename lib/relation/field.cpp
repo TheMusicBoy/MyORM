@@ -1,5 +1,7 @@
 #include <relation/field.h>
 
+#include <lib/relation/proto/orm_core.pb.h>
+
 namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -14,7 +16,44 @@ const TValueInfo& TPrimitiveFieldInfo::GetTypeInfo() const {
 
 TPrimitiveFieldInfo::TPrimitiveFieldInfo(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path)
     : TFieldBase(fieldDescriptor, path) {
-    // Set DefaultValueString_ based on the fieldDescriptor if available
+    if (!fieldDescriptor) {
+        DefaultValueString_ = "";
+        TypeInfo_ = std::monostate{};
+        HasDefault_ = false;
+        Unique_ = false;
+        IsRequired_ = false;
+        IsPrimaryKey_ = false;
+        return;
+    }
+
+    // Уникальное поле
+    if (fieldDescriptor->options().HasExtension(orm::unique)) {
+        Unique_ = fieldDescriptor->options().GetExtension(orm::unique);
+    } else {
+        Unique_ = false;
+    }
+    
+    // Обязательное поле
+    if (fieldDescriptor->options().HasExtension(orm::required)) {
+        IsRequired_ = fieldDescriptor->options().GetExtension(orm::required);
+    } else {
+        IsRequired_ = false;
+    }
+    
+    // Первичный ключ
+    if (fieldDescriptor->options().HasExtension(orm::primary_key)) {
+        IsPrimaryKey_ = fieldDescriptor->options().GetExtension(orm::primary_key);
+    } else {
+        IsPrimaryKey_ = false;
+    }
+    
+    // Auto increment
+    if (fieldDescriptor->options().HasExtension(orm::auto_increment)) {
+        AutoIncrement_ = fieldDescriptor->options().GetExtension(orm::auto_increment);
+    } else {
+        AutoIncrement_ = false;
+    }
+    
     switch (fieldDescriptor->type()) {
         case google::protobuf::FieldDescriptor::TYPE_BOOL:
             HandleBoolField(fieldDescriptor);
@@ -59,58 +98,120 @@ TPrimitiveFieldInfo::TPrimitiveFieldInfo(const google::protobuf::FieldDescriptor
 }
 
 void TPrimitiveFieldInfo::HandleBoolField(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->default_value_bool() ? "true" : "false";
-    TypeInfo_ = TBoolFieldInfo{field->default_value_bool()};
+    HasDefault_ = field->options().HasExtension(orm::default_bool);
+    if (HasDefault_) {
+        DefaultValueString_ = field->options().GetExtension(orm::default_bool) ? "true" : "false";
+        TypeInfo_ = TBoolFieldInfo{field->options().GetExtension(orm::default_bool)};
+    } else {
+        DefaultValueString_ = "false";
+        TypeInfo_ = TBoolFieldInfo{false};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleInt32Field(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = std::to_string(field->default_value_int32());
-    TypeInfo_ = TInt32FieldInfo{field->default_value_int32()};
+    HasDefault_ = field->options().HasExtension(orm::default_int32);
+    if (HasDefault_) {
+        DefaultValueString_ = std::to_string(field->options().GetExtension(orm::default_int32));
+        TypeInfo_ = TInt32FieldInfo{field->options().GetExtension(orm::default_int32)};
+    } else {
+        DefaultValueString_ = "0";
+        TypeInfo_ = TInt32FieldInfo{0};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleUInt32Field(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->has_default_value() ? std::to_string(field->default_value_uint32()) : "0";
-    TypeInfo_ = TUInt32FieldInfo{field->default_value_uint32()};
+    HasDefault_ = field->options().HasExtension(orm::default_uint32);
+    if (HasDefault_) {
+        DefaultValueString_ = std::to_string(field->options().GetExtension(orm::default_uint32));
+        TypeInfo_ = TUInt32FieldInfo{field->options().GetExtension(orm::default_uint32)};
+    } else {
+        DefaultValueString_ = "0";
+        TypeInfo_ = TUInt32FieldInfo{0};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleInt64Field(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->has_default_value() ? std::to_string(field->default_value_int64()) : "0";
-    TypeInfo_ = TInt64FieldInfo{field->default_value_int64()};
+    HasDefault_ = field->options().HasExtension(orm::default_int64);
+    if (HasDefault_) {
+        DefaultValueString_ = std::to_string(field->options().GetExtension(orm::default_int64));
+        TypeInfo_ = TInt64FieldInfo{field->options().GetExtension(orm::default_int64)};
+    } else {
+        DefaultValueString_ = "0";
+        TypeInfo_ = TInt64FieldInfo{0};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleUInt64Field(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->has_default_value() ? std::to_string(field->default_value_uint64()) : "0";
-    TypeInfo_ = TUInt64FieldInfo{field->default_value_uint64()};
+    HasDefault_ = field->options().HasExtension(orm::default_uint64);
+    if (HasDefault_) {
+        DefaultValueString_ = std::to_string(field->options().GetExtension(orm::default_uint64));
+        TypeInfo_ = TUInt64FieldInfo{field->options().GetExtension(orm::default_uint64)};
+    } else {
+        DefaultValueString_ = "0";
+        TypeInfo_ = TUInt64FieldInfo{0};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleFloatField(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->has_default_value() ? std::to_string(field->default_value_float()) : "0.0";
-    TypeInfo_ = TFloatFieldInfo{field->default_value_float()};
+    HasDefault_ = field->options().HasExtension(orm::default_float);
+    if (HasDefault_) {
+        DefaultValueString_ = std::to_string(field->options().GetExtension(orm::default_float));
+        TypeInfo_ = TFloatFieldInfo{field->options().GetExtension(orm::default_float)};
+    } else {
+        DefaultValueString_ = "0.0";
+        TypeInfo_ = TFloatFieldInfo{0.0f};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleDoubleField(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->has_default_value() ? std::to_string(field->default_value_double()) : "0.0";
-    TypeInfo_ = TDoubleFieldInfo{field->default_value_double()};
+    HasDefault_ = field->options().HasExtension(orm::default_double);
+    if (HasDefault_) {
+        DefaultValueString_ = std::to_string(field->options().GetExtension(orm::default_double));
+        TypeInfo_ = TDoubleFieldInfo{field->options().GetExtension(orm::default_double)};
+    } else {
+        DefaultValueString_ = "0.0";
+        TypeInfo_ = TDoubleFieldInfo{0.0};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleStringField(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->has_default_value() ? "\\\"" + field->default_value_string() + "\\\"" : "\\\"\\\"";
-    TypeInfo_ = TStringFieldInfo{field->default_value_string()};
+    HasDefault_ = field->options().HasExtension(orm::default_string);
+    if (HasDefault_) {
+        DefaultValueString_ = "\\\"" + field->options().GetExtension(orm::default_string) + "\\\"";
+        TypeInfo_ = TStringFieldInfo{field->options().GetExtension(orm::default_string)};
+    } else {
+        DefaultValueString_ = "\\\"\\\"";
+        TypeInfo_ = TStringFieldInfo{""};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleBytesField(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->has_default_value() ? "<bytes>" : "<empty>";
-    TypeInfo_ = TBytesFieldInfo{};
+    HasDefault_ = field->options().HasExtension(orm::default_bytes);
+    if (HasDefault_) {
+        DefaultValueString_ = "<bytes>";
+        TypeInfo_ = TBytesFieldInfo{};
+    } else {
+        DefaultValueString_ = "<empty>";
+        TypeInfo_ = TBytesFieldInfo{};
+    }
 }
 
 void TPrimitiveFieldInfo::HandleEnumField(const google::protobuf::FieldDescriptor* field) {
-    DefaultValueString_ = field->has_default_value() ? field->default_value_enum()->name() : "unknown";
-    TypeInfo_ = TEnumFieldInfo{field->default_value_enum()->index()};
+    HasDefault_ = field->options().HasExtension(orm::default_enum);
+    if (HasDefault_) {
+        const google::protobuf::EnumValueDescriptor* enumValue = 
+            field->enum_type()->FindValueByName(field->options().GetExtension(orm::default_enum));
+        DefaultValueString_ = enumValue ? enumValue->name() : "unknown";
+        TypeInfo_ = TEnumFieldInfo{enumValue ? enumValue->index() : 0};
+    } else {
+        DefaultValueString_ = "unknown";
+        TypeInfo_ = TEnumFieldInfo{0};
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Реализация TPrimitiveFieldIterator
+// Implementation of TPrimitiveFieldIterator
 void TPrimitiveFieldIterator::skipMessageFields() {
     while (it_ != end_ && it_->second->IsMessage()) {
         ++it_;
@@ -118,8 +219,8 @@ void TPrimitiveFieldIterator::skipMessageFields() {
 }
 
 TPrimitiveFieldIterator::TPrimitiveFieldIterator(
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it,
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end)
+    std::map<int, TFieldBasePtr>::iterator it,
+    std::map<int, TFieldBasePtr>::iterator end)
     : it_(it), end_(end)  {
     skipMessageFields();
 }
@@ -144,16 +245,16 @@ bool TPrimitiveFieldIterator::operator!=(const TPrimitiveFieldIterator& other) c
     return !(*this == other);
 }
 
-TPrimitiveFieldInfo* TPrimitiveFieldIterator::operator*() const {
-    return static_cast<TPrimitiveFieldInfo*>(it_->second.get());
+TPrimitiveFieldInfoPtr TPrimitiveFieldIterator::operator*() const {
+    return std::static_pointer_cast<TPrimitiveFieldInfo>(it_->second);
 }
 
-TPrimitiveFieldInfo* TPrimitiveFieldIterator::operator->() const {
-    return static_cast<TPrimitiveFieldInfo*>(it_->second.get());
+TPrimitiveFieldInfoPtr TPrimitiveFieldIterator::operator->() const {
+    return std::static_pointer_cast<TPrimitiveFieldInfo>(it_->second);
 }
 
-// Реализация TPrimitiveFieldsRange
-TPrimitiveFieldsRange::TPrimitiveFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields)
+// Implementation of TPrimitiveFieldsRange
+TPrimitiveFieldsRange::TPrimitiveFieldsRange(std::map<int, TFieldBasePtr>& fields)
     : fields_(fields) {}
 
 TPrimitiveFieldIterator TPrimitiveFieldsRange::begin() {
@@ -167,3 +268,4 @@ TPrimitiveFieldIterator TPrimitiveFieldsRange::end() {
 ////////////////////////////////////////////////////////////////////////////////
 
 } // namespace NOrm::NRelation
+

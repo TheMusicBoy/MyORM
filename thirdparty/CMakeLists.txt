@@ -28,16 +28,6 @@ if (NOT json_POPULATED)
     add_subdirectory(${json_SOURCE_DIR} ${json_BINARY_DIR})
 endif()
 
-# -- Protobuf --
-
-FetchContent_Declare(protobuf
-    GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-    GIT_TAG v21.5  # Specify a release tag
-)
-
-set(protobuf_BUILD_TESTS OFF CACHE BOOL "Disable Protobuf tests")
-FetchContent_MakeAvailable(protobuf)
-
 # # -- Libpqxx --
 
 # FetchContent_Declare(libpqxx

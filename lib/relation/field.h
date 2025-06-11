@@ -1,5 +1,7 @@
 #pragma once
 
+#include <common/intrusive_ptr.h>
+
 #include <relation/base.h>
 
 #include <variant>
@@ -16,31 +18,37 @@ struct TBoolFieldInfo {
 // Structure for 32-bit integer field information
 struct TInt32FieldInfo {
     int32_t defaultValue;
+    bool increment;
 };
 
 // Structure for unsigned 32-bit integer field information
 struct TUInt32FieldInfo {
     uint32_t defaultValue;
+    bool increment;
 };
 
 // Structure for 64-bit integer field information
 struct TInt64FieldInfo {
     int64_t defaultValue;
+    bool increment;
 };
 
 // Structure for unsigned 64-bit integer field information
 struct TUInt64FieldInfo {
     uint64_t defaultValue;
+    bool increment;
 };
 
 // Structure for float field information
 struct TFloatFieldInfo {
     float defaultValue;
+    bool increment;
 };
 
 // Structure for double field information
 struct TDoubleFieldInfo {
     double defaultValue;
+    bool increment;
 };
 
 // Structure for string field information
@@ -81,8 +89,32 @@ class TPrimitiveFieldInfo : public TFieldBase {
     // Accessor for TypeInfo_
     const TValueInfo& GetTypeInfo() const;
 
+    std::string GetId() const {
+        return Format("f_{}", GetPath().number());
+    }
+
+    std::string GetTableId() const {
+        return Format("t_{num;name=false;onlydelim;delimiter='_'}", GetPath().parent());
+    }
+
     bool IsMessage() const override {
         return false;
+    }
+
+    bool HasDefaultValue() const {
+        return HasDefault_;
+    }
+
+    bool IsRequired() const {
+        return IsRequired_;
+    }
+
+    bool IsPrimaryKey() const {
+        return IsPrimaryKey_;
+    }
+
+    bool AutoIncrement() const {
+        return IsPrimaryKey_;
     }
 
     // Constructor from google::protobuf::FieldDescriptor*
@@ -100,50 +132,58 @@ class TPrimitiveFieldInfo : public TFieldBase {
     void HandleBytesField(const google::protobuf::FieldDescriptor* field);
     void HandleEnumField(const google::protobuf::FieldDescriptor* field);
 
+    bool HasDefault_;
+    bool Unique_;
+    bool IsRequired_;
+    bool IsPrimaryKey_;
+    bool AutoIncrement_;
+
     std::string DefaultValueString_;
 
     // Type-dependent field information using std::variant
     TValueInfo TypeInfo_;
 };
 
+using TPrimitiveFieldInfoPtr = std::shared_ptr<TPrimitiveFieldInfo>;
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class TPrimitiveFieldIterator {
   public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = TPrimitiveFieldInfo*;
+    using value_type = TPrimitiveFieldInfoPtr;
     using difference_type = std::ptrdiff_t;
-    using pointer = TPrimitiveFieldInfo**;
-    using reference = TPrimitiveFieldInfo*&;
+    using pointer = TPrimitiveFieldInfoPtr*;
+    using reference = TPrimitiveFieldInfoPtr&;
 
     TPrimitiveFieldIterator(
-        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it,
-        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end
+        std::map<int, TFieldBasePtr>::iterator it,
+        std::map<int, TFieldBasePtr>::iterator end
     );
 
     TPrimitiveFieldIterator& operator++();
     TPrimitiveFieldIterator operator++(int);
     bool operator==(const TPrimitiveFieldIterator& other) const;
     bool operator!=(const TPrimitiveFieldIterator& other) const;
-    TPrimitiveFieldInfo* operator*() const;
-    TPrimitiveFieldInfo* operator->() const;
+    TPrimitiveFieldInfoPtr operator*() const;
+    TPrimitiveFieldInfoPtr operator->() const;
 
   private:
     void skipMessageFields();
 
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it_;
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end_;
+    std::map<int, TFieldBasePtr>::iterator it_;
+    std::map<int, TFieldBasePtr>::iterator end_;
 };
 
 class TPrimitiveFieldsRange {
   public:
-    TPrimitiveFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields);
+    TPrimitiveFieldsRange(std::map<int, TFieldBasePtr>& fields);
 
     TPrimitiveFieldIterator begin();
     TPrimitiveFieldIterator end();
 
   private:
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields_;
+    std::map<int, TFieldBasePtr>& fields_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

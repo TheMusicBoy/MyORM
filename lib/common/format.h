@@ -186,16 +186,10 @@ private:
 struct FormatModifier;
 
 template <typename T>
-inline void FormatHandler(std::ostringstream& out, const T& value, const FormatOptions& options = FormatOptions()) {
-    out << value;
-}
-
-template <typename T>
 inline void FormatHandler(std::ostringstream& out, const T& value, const std::string& modifier) {
     FormatHandler(out, value, FormatOptions(modifier));
 }
 
-template <>
 inline void FormatHandler(std::ostringstream& out, const bool& value, const FormatOptions& options) {
     std::string trueStr = options.GetString("true", "true");
     std::string falseStr = options.GetString("false", "false");
@@ -267,7 +261,7 @@ inline void FormatHandler(std::ostringstream& out, const Exception& value, const
 }
 
 template <typename T>
-requires (!std::is_array_v<T> && std::numeric_limits<T>::is_integer && !std::is_same_v<T, bool>)
+requires (!std::is_array_v<T> && std::numeric_limits<T>::is_integer && !std::is_same_v<T, bool> && !std::is_enum_v<T>)
 inline void FormatHandler(std::ostringstream& out, const T& value, const FormatOptions& options) {
     int width = options.GetInt("width", 0);
     char fillChar = options.GetString("fill", " ")[0];
@@ -355,6 +349,11 @@ void FormatSequenceContainer(std::ostringstream& out, const Container& container
     std::string suffix = options.GetString("suffix", "]");
     int limit = options.GetInt("limit", -1);
     std::string overflow = options.GetString("overflow", "...");
+
+    if (options.GetBool("onlydelim", false)) {
+        prefix = "";
+        suffix = "";
+    }
     
     out << prefix;
     
@@ -390,6 +389,11 @@ void FormatMappedContainer(std::ostringstream& out, const Container& container, 
     std::string kv_separator = options.GetString("kv_separator", ": ");
     int limit = options.GetInt("limit", -1);
     std::string overflow = options.GetString("overflow", "...");
+
+    if (options.GetBool("onlydelim", false)) {
+        prefix = "";
+        suffix = "";
+    }
     
     out << prefix;
     

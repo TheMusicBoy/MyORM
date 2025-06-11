@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package NOrm.NQuery;
+
+enum EExpressionType {
+    unknown = 0;
+
+    // Арифметические выражения
+    add = 1;
+    subtract = 2;
+    multiply = 3;
+    divide = 4;
+    modulo = 5;
+    exponent = 6;
+
+    // Сравнения
+    equals = 11;
+    not_equals = 12;
+    greater_than = 13;
+    less_than = 14;
+    greater_than_or_equals = 15;
+    less_than_or_equals = 16;
+
+    // Логические выражения
+    and = 21;
+    or = 22;
+    not = 23;
+
+    // Строковые выражения
+    like = 31;
+    ilike = 32;
+    similar_to = 33;
+    regexp_match = 34;
+
+    // Проверка и типы
+    is_null = 41;
+    is_not_null = 42;
+    between = 43;
+    in = 44;
+    not_in = 45;
+    exists = 46;
+
+    // Агрегатные функции
+    count = 100;
+    sum = 101;
+    avg = 102;
+    min = 103;
+    max = 104;
+    array_agg = 105;
+    string_agg = 106;
+    json_agg = 107;
+
+    // Числовые функции
+    abs = 110;
+    round = 111;
+    ceil = 112;
+    floor = 113;
+    sqrt = 114;
+    log = 115;
+    random = 116;
+    sin = 117;
+    cos = 118;
+    tan = 119;
+    power = 120;
+
+    // Строковые функции
+    concat = 130;
+    lower = 131;
+    upper = 132;
+    substring = 133;
+    length = 134;
+    replace = 135;
+    trim = 136;
+    left = 137;
+    right = 138;
+    position = 139;
+    split_part = 140;
+
+    // Условные функции
+    case = 160;
+    coalesce = 161;
+    greatest = 162;
+    least = 163;
+}
+
+enum EColumnType {
+    ESingular = 0;
+    EExcluded = 1;
+}

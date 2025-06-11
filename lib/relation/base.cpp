@@ -5,27 +5,27 @@ namespace NOrm::NRelation {
 ////////////////////////////////////////////////////////////////////////////////
 
 std::string TMessageBase::GetTableName() const {
-    return Format("t_{delimiter='_',element={num=true,name=false}}", this->GetPath());
+    return Format("{table_id}", this->GetPath());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// TFieldBase implementation
-TFieldBase::TFieldBase(
-    int fieldNumber,
-    const std::string& name,
-    const TMessagePath& path,
-    google::protobuf::FieldDescriptor::Type type,
-    TFieldTypeInfoPtr fieldTypeInfo
-)
-    : FieldNumber_(fieldNumber),
-      Name_(name),
-      ValueType_(type),
-      FieldTypeInfo_(fieldTypeInfo),
-      Path_(path / TMessagePathEntry{fieldNumber, name}) {}
-
-TFieldBase::TFieldBase(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path)
-    : TFieldBase(fieldDescriptor->number(), fieldDescriptor->name(), path, fieldDescriptor->type(), ::NOrm::NRelation::GetFieldTypeInfo(fieldDescriptor)) {}
+TFieldBase::TFieldBase(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path) {
+    if (!fieldDescriptor) {
+        // Provide default values for null descriptors
+        FieldNumber_ = -1;
+        Name_ = "unknown";
+        ValueType_ = google::protobuf::FieldDescriptor::TYPE_INT32; // Default type
+        FieldTypeInfo_ = ::NOrm::NRelation::GetFieldTypeInfo(nullptr);
+        Path_ = path / -1;
+    } else {
+        FieldNumber_ = fieldDescriptor->number();
+        Name_ = fieldDescriptor->name();
+        ValueType_ = fieldDescriptor->type();
+        FieldTypeInfo_ = ::NOrm::NRelation::GetFieldTypeInfo(fieldDescriptor);
+        Path_ = path / fieldDescriptor;
+    }
+}
 
 const TMessagePath& TFieldBase::GetPath() const {
     return Path_;
@@ -55,7 +55,9 @@ TRootBase::TRootBase(TTableConfigPtr config)
       SnakeCase_(config->SnakeCase),
       CamelCase_(config->CamelCase),
       Descriptor_(google::protobuf::DescriptorPool::generated_pool()->FindMessageTypeByName(config->Scheme)),
-      Path_({Number_, SnakeCase_}) {}
+      Path_(Number_) {
+    TPathManager::GetInstance().RegisterEntry(Path_, config->SnakeCase);
+}
 
 const TMessagePath& TRootBase::GetPath() const {
     return Path_;
@@ -69,6 +71,11 @@ const google::protobuf::Descriptor* TRootBase::GetDescriptor() const {
 
 // GetFieldTypeInfo implementation
 TFieldTypeInfoPtr GetFieldTypeInfo(const google::protobuf::FieldDescriptor* desc) {
+    // Check for null pointer
+    if (!desc) {
+        return std::make_shared<TSingularFieldInfo>();
+    }
+
     // Handle map fields first (maps are a special kind of repeated field)
     if (desc->is_map()) {
         auto info = std::make_shared<TMapFieldInfo>();
@@ -100,8 +107,8 @@ TFieldTypeInfoPtr GetFieldTypeInfo(const google::protobuf::FieldDescriptor* desc
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Реализация TFieldIterator
-TFieldIterator::TFieldIterator(std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it)
+// Implementation of TFieldIterator
+TFieldIterator::TFieldIterator(std::map<int, TFieldBasePtr>::iterator it)
     : it_(it) {}
 
 TFieldIterator& TFieldIterator::operator++() {
@@ -123,17 +130,17 @@ bool TFieldIterator::operator!=(const TFieldIterator& other) const {
     return !(*this == other);
 }
 
-TFieldBase* TFieldIterator::operator*() const {
-    return it_->second.get();
+TFieldBasePtr TFieldIterator::operator*() const {
+    return it_->second;
 }
 
-TFieldBase* TFieldIterator::operator->() const {
-    return it_->second.get();
+TFieldBasePtr TFieldIterator::operator->() const {
+    return it_->second;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TFieldsRange::TFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields)
+TFieldsRange::TFieldsRange(std::map<int, TFieldBasePtr>& fields)
     : fields_(fields) {}
 
 TFieldIterator TFieldsRange::begin() {

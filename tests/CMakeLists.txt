@@ -6,7 +6,17 @@ set(TESTROOT "${PROJECT_SOURCE_DIR}/tests")
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(TestUtils)
 
-# Example: Uncomment to add a sample test
+# Generate protobuf objects for tests
+include(${PROJECT_SOURCE_DIR}/cmake/ProtoGen.cmake)
+
+generate_protobuf_simple(test_objects
+SOURCES
+    ${TESTROOT}/proto/test_objects.proto
+DEPENDS
+    relation_proto
+)
+
+# Common tests
 add_test_ex(common_test
     SOURCES 
         ${TESTROOT}/common/format_test.cpp
@@ -16,13 +26,27 @@ add_test_ex(common_test
         common
 )
 
-# add_test_ex(master_test
-#     SOURCES
-#         ${TESTROOT}/master/postgresql_test.cpp
-#     DEPENDS
-#         common
-#         object_base
-#         master_service
-# )
+# Relation tests
+add_test_ex(relation_test
+    SOURCES 
+        ${TESTROOT}/relation/relation_manager_test.cpp
+        ${TESTROOT}/relation/postgres_query_builder_test.cpp
+    DEPENDS
+        relation
+        test_objects
+        common
+)
+
+# Requests tests
+add_test_ex(requests_test
+    SOURCES 
+        ${TESTROOT}/requests/query_create_test.cpp
+    DEPENDS
+        relation
+        requests
+        test_objects
+        common
+)
 
 message(STATUS "Test framework configured")
+

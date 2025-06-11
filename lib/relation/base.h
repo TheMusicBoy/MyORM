@@ -3,6 +3,8 @@
 #include <relation/config.h>
 #include <relation/path.h>
 
+#include <google/protobuf/descriptor.pb.h>
+
 namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -67,6 +69,8 @@ class TMessageBase {
     std::string GetTableName() const;
 };
 
+using TMessageBasePtr = std::shared_ptr<TMessageBase>;
+
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -79,15 +83,6 @@ class TMessageBase {
  */
 class TFieldBase : virtual public TMessageBase {
   public:
-    // Constructor
-    TFieldBase(
-        int fieldNumber,
-        const std::string& name,
-        const TMessagePath& path,
-        google::protobuf::FieldDescriptor::Type type,
-        TFieldTypeInfoPtr fieldTypeInfo
-    );
-
     // Constructor from FieldDescriptor
     TFieldBase(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path);
 
@@ -105,6 +100,8 @@ class TFieldBase : virtual public TMessageBase {
     TFieldTypeInfoPtr FieldTypeInfo_;
     TMessagePath Path_;
 };
+
+using TFieldBasePtr = std::shared_ptr<TFieldBase>;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -125,42 +122,63 @@ class TRootBase : virtual public TMessageBase {
     const google::protobuf::Descriptor* Descriptor_;
 };
 
+using TRootBasePtr = std::shared_ptr<TRootBase>;
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class TFieldIterator {
   public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = TFieldBase*;
+    using value_type = TFieldBasePtr;
     using difference_type = std::ptrdiff_t;
-    using pointer = TFieldBase**;
-    using reference = TFieldBase*&;
+    using pointer = TFieldBasePtr*;
+    using reference = TFieldBasePtr&;
 
-    TFieldIterator(std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it);
+    TFieldIterator(std::map<int, TFieldBasePtr>::iterator it);
 
     TFieldIterator& operator++();
     TFieldIterator operator++(int);
     bool operator==(const TFieldIterator& other) const;
     bool operator!=(const TFieldIterator& other) const;
-    TFieldBase* operator*() const;
-    TFieldBase* operator->() const;
+    TFieldBasePtr operator*() const;
+    TFieldBasePtr operator->() const;
 
   private:
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it_;
+    std::map<int, TFieldBasePtr>::iterator it_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
 class TFieldsRange {
 public:
-    TFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields);
+    TFieldsRange(std::map<int, TFieldBasePtr>& fields);
 
     TFieldIterator begin();
     TFieldIterator end();
 
 private:
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields_;
+    std::map<int, TFieldBasePtr>& fields_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
 } // namespace NOrm::NRelation
+
+namespace NCommon {
+
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename T>
+requires requires { google::protobuf::GetEnumDescriptor<T>(); } && std::is_enum_v<T>
+inline void FormatHandler(std::ostringstream& out, T value, const FormatOptions& options) {
+    auto desc = google::protobuf::GetEnumDescriptor<T>();
+    if (auto v = desc->FindValueByNumber(value)) {
+        FormatHandler(out, std::string(v->name()), options);
+    } else {
+        FormatHandler(out, static_cast<int>(value), options);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+} // namespace NCommon

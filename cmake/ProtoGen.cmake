@@ -1,83 +1,142 @@
-# Function to generate protobuf code and create a library
-# Usage:
-#   add_protobuf_library(target_name
-#       PROTO_FILES file1.proto file2.proto
-#       OUTPUT_DIR path/to/output
-#       [PROTO_PATH path1 path2 ...]
-#   )
-function(add_protobuf_library target_name)
-    # Parse remaining arguments
-    cmake_parse_arguments(PROTO_GEN "" "OUTPUT_DIR" "PROTO_FILES;PROTO_PATH" ${ARGN})
+find_package(Protobuf REQUIRED)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GRPC REQUIRED grpc++)
+pkg_check_modules(GRPCPP REQUIRED grpc++_unsecure)
+
+# Находим исполняемый файл protoc и плагин grpc
+find_program(PROTOC protoc)
+find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
+
+function(generate_protobuf_grpc TARGET_NAME)
+    cmake_parse_arguments(ARG "" "" "SOURCES;DEPENDS" ${ARGN})
     
-    # Validate required arguments
-    if(NOT PROTO_GEN_PROTO_FILES)
-        message(FATAL_ERROR "PROTO_FILES is required for add_protobuf_library")
+    if(NOT ARG_SOURCES)
+        message(FATAL_ERROR "generate_protobuf_grpc: SOURCES не указаны")
     endif()
     
-    if(NOT PROTO_GEN_OUTPUT_DIR)
-        message(FATAL_ERROR "OUTPUT_DIR is required for add_protobuf_library")
-    endif()
+    # Создаем единую директорию для всех сгенерированных файлов
+    set(GEN_DIR "${CMAKE_BINARY_DIR}/generated")
+    file(MAKE_DIRECTORY ${GEN_DIR})
     
-    # Create output directory if it doesn't exist
-    file(MAKE_DIRECTORY ${PROTO_GEN_OUTPUT_DIR})
-    
-    # Get the protoc executable path
-    set(PROTOC_PATH "$<TARGET_FILE:protobuf::protoc>")
-    
-    # Set up lists for generated sources and headers
     set(PROTO_SRCS)
     set(PROTO_HDRS)
     
-    # Process each proto file
-    foreach(proto_file ${PROTO_GEN_PROTO_FILES})
-        # Get absolute path and filename without extension
-        get_filename_component(proto_file_abs ${proto_file} ABSOLUTE)
-        get_filename_component(proto_name ${proto_file} NAME_WE)
-        get_filename_component(proto_file_name ${proto_file} NAME)
-        get_filename_component(proto_dir ${proto_file_abs} DIRECTORY)
+    foreach(PROTO_FILE ${ARG_SOURCES})
+        get_filename_component(ABS_PROTO_FILE ${PROTO_FILE} ABSOLUTE)
+        get_filename_component(PROTO_NAME_WE ${PROTO_FILE} NAME_WE)
+        file(RELATIVE_PATH REL_PROTO_PATH ${PROJECT_SOURCE_DIR} ${ABS_PROTO_FILE})
+        get_filename_component(REL_PROTO_DIR ${REL_PROTO_PATH} DIRECTORY)
         
-        # Set output file paths
-        set(proto_src "${PROTO_GEN_OUTPUT_DIR}/${proto_name}.pb.cc")
-        set(proto_hdr "${PROTO_GEN_OUTPUT_DIR}/${proto_name}.pb.h")
+        # Выходные файлы в общей директории, с сохранением относительного пути
+        set(OUTPUT_DIR "${GEN_DIR}/${REL_PROTO_DIR}")
+        file(MAKE_DIRECTORY ${OUTPUT_DIR})
         
-        # Add files to lists
-        list(APPEND PROTO_SRCS ${proto_src})
-        list(APPEND PROTO_HDRS ${proto_hdr})
+        set(PROTO_CC "${OUTPUT_DIR}/${PROTO_NAME_WE}.pb.cc")
+        set(PROTO_H "${OUTPUT_DIR}/${PROTO_NAME_WE}.pb.h")
+        set(GRPC_PROTO_CC "${OUTPUT_DIR}/${PROTO_NAME_WE}.grpc.pb.cc")
+        set(GRPC_PROTO_H "${OUTPUT_DIR}/${PROTO_NAME_WE}.grpc.pb.h")
         
-        # Set up import paths for protoc
-        set(PROTO_IMPORT_PATHS)
-        foreach(import_path ${PROTO_GEN_PROTO_PATH})
-            list(APPEND PROTO_IMPORT_PATHS "-I${import_path}")
-        endforeach()
+        list(APPEND PROTO_SRCS ${PROTO_CC} ${GRPC_PROTO_CC})
+        list(APPEND PROTO_HDRS ${PROTO_H} ${GRPC_PROTO_H})
         
-        # Add the directory containing the proto file as an import path
-        list(APPEND PROTO_IMPORT_PATHS "-I${proto_dir}")
-        
-        # Add custom command to generate C++ code
+        # Генерация protobuf файлов из источника
         add_custom_command(
-            OUTPUT ${proto_src} ${proto_hdr}
-            COMMAND ${PROTOC_PATH}
-            ARGS --cpp_out=${PROTO_GEN_OUTPUT_DIR}
-                 ${PROTO_IMPORT_PATHS}
-                 -I${CMAKE_CURRENT_SOURCE_DIR}
-                 ${proto_file_name}
-            WORKING_DIRECTORY ${proto_dir}
-            DEPENDS ${proto_file_abs} protobuf::protoc
-            COMMENT "Generating C++ code from ${proto_file}"
-            VERBATIM
+            OUTPUT ${PROTO_CC} ${PROTO_H} ${GRPC_PROTO_CC} ${GRPC_PROTO_H}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
+            COMMAND ${PROTOC}
+                --grpc_out=${GEN_DIR}
+                --cpp_out=${GEN_DIR}
+                --proto_path=${PROJECT_SOURCE_DIR}
+                --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
+                ${REL_PROTO_PATH}
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            DEPENDS ${ABS_PROTO_FILE}
+            COMMENT "Generating gRPC protobuf files from ${PROTO_FILE}"
         )
     endforeach()
     
-    # Create custom target for generation
-    add_custom_target(${target_name}_generation ALL 
-                      DEPENDS ${PROTO_SRCS} ${PROTO_HDRS})
+    # Создаем библиотеку
+    add_library(${TARGET_NAME} STATIC ${PROTO_SRCS} ${PROTO_HDRS})
     
-    # Create library target with generated files
-    add_library(${target_name} STATIC ${PROTO_SRCS} ${PROTO_HDRS})
-    add_dependencies(${target_name} ${target_name}_generation)
-    target_link_libraries(${target_name} PUBLIC protobuf::libprotobuf)
-    target_include_directories(${target_name} PUBLIC 
-        ${PROTO_GEN_OUTPUT_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}
+    target_include_directories(${TARGET_NAME} PUBLIC
+        ${GEN_DIR}  # Путь к сгенерированным файлам
+        ${PROTOBUF_INCLUDE_DIRS}
+        ${GRPC_INCLUDE_DIRS}
     )
+    
+    target_link_libraries(${TARGET_NAME} 
+        PUBLIC 
+        ${PROTOBUF_LIBRARIES}
+        ${GRPC_LIBRARIES}
+        ${GRPCPP_LIBRARIES}
+    )
+    
+    if(ARG_DEPENDS)
+        add_dependencies(${TARGET_NAME} ${ARG_DEPENDS})
+        target_link_libraries(${TARGET_NAME} PUBLIC ${ARG_DEPENDS})
+    endif()
+endfunction()
+
+function(generate_protobuf_simple TARGET_NAME)
+    cmake_parse_arguments(ARG "" "" "SOURCES;DEPENDS" ${ARGN})
+    
+    if(NOT ARG_SOURCES)
+        message(FATAL_ERROR "generate_protobuf_simple: SOURCES не указаны")
+    endif()
+    
+    # Создаем единую директорию для всех сгенерированных файлов
+    set(GEN_DIR "${CMAKE_BINARY_DIR}/generated")
+    file(MAKE_DIRECTORY ${GEN_DIR})
+    
+    set(PROTO_SRCS)
+    set(PROTO_HDRS)
+    
+    foreach(PROTO_FILE ${ARG_SOURCES})
+        get_filename_component(ABS_PROTO_FILE ${PROTO_FILE} ABSOLUTE)
+        get_filename_component(PROTO_NAME_WE ${PROTO_FILE} NAME_WE)
+        file(RELATIVE_PATH REL_PROTO_PATH ${PROJECT_SOURCE_DIR} ${ABS_PROTO_FILE})
+        get_filename_component(REL_PROTO_DIR ${REL_PROTO_PATH} DIRECTORY)
+        
+        # Выходные файлы в общей директории, с сохранением относительного пути
+        set(OUTPUT_DIR "${GEN_DIR}/${REL_PROTO_DIR}")
+        file(MAKE_DIRECTORY ${OUTPUT_DIR})
+        
+        set(PROTO_CC "${OUTPUT_DIR}/${PROTO_NAME_WE}.pb.cc")
+        set(PROTO_H "${OUTPUT_DIR}/${PROTO_NAME_WE}.pb.h")
+        
+        list(APPEND PROTO_SRCS ${PROTO_CC})
+        list(APPEND PROTO_HDRS ${PROTO_H})
+        
+        # Генерация protobuf файлов из источника
+        add_custom_command(
+            OUTPUT ${PROTO_CC} ${PROTO_H}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIR}
+            COMMAND ${PROTOC}
+                --cpp_out=${GEN_DIR}
+                --proto_path=${PROJECT_SOURCE_DIR}
+                ${REL_PROTO_PATH}
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            DEPENDS ${ABS_PROTO_FILE}
+            COMMENT "Generating protobuf files from ${PROTO_FILE}"
+        )
+    endforeach()
+    
+    # Создаем библиотеку
+    add_library(${TARGET_NAME} STATIC ${PROTO_SRCS} ${PROTO_HDRS})
+    
+    target_include_directories(${TARGET_NAME} PUBLIC
+        ${GEN_DIR}  # Путь к сгенерированным файлам
+        ${PROTOBUF_INCLUDE_DIRS}
+    )
+    
+    target_link_libraries(${TARGET_NAME} 
+        PUBLIC 
+        ${PROTOBUF_LIBRARIES}
+    )
+    
+    if(ARG_DEPENDS)
+        add_dependencies(${TARGET_NAME} ${ARG_DEPENDS})
+        target_link_libraries(${TARGET_NAME} PUBLIC ${ARG_DEPENDS})
+    endif()
 endfunction()

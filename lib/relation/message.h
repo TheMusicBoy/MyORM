@@ -1,14 +1,12 @@
 #pragma once
 
 #include <relation/base.h>
-#include <unordered_map>
-#include <unordered_set>
+#include <map>
 
 namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class TFieldMessage;
 class TFieldRange;
 class TPrimitiveFieldsRange;
 class TMessageFieldsRange;
@@ -17,63 +15,29 @@ class TMessageFieldsRange;
 
 class TMessageInfo : virtual public TMessageBase {
   public:
-    // Метод для получения диапазона всех полей
+    // Method to get range of all fields
     TFieldsRange Fields();
 
-    // Метод для получения диапазона только примитивных полей
+    // Method to get range of primitive fields only
     TPrimitiveFieldsRange PrimitiveFields();
 
-    // Метод для получения диапазона только полей-сообщений
+    // Method to get range of message fields only
     TMessageFieldsRange MessageFields();
+
+    virtual std::string GetId() const = 0;
 
     TMessageInfo(const google::protobuf::Descriptor* descriptor);
 
-  protected:
     void Process();
 
+  protected:
     std::string MessageName_;
-    std::unordered_map<int, std::unique_ptr<TFieldBase>> Fields_;
-    std::unordered_set<int> SubMessages_;
+    std::map<int, TFieldBasePtr> Fields_;
+    std::set<int> SubMessages_;
     const google::protobuf::Descriptor* Descriptor_;
 };
 
-class TMessageFieldIterator {
-  public:
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = TFieldMessage*;
-    using difference_type = std::ptrdiff_t;
-    using pointer = TFieldMessage**;
-    using reference = TFieldMessage*&;
-
-    TMessageFieldIterator(
-        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it,
-        std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end
-    );
-
-    TMessageFieldIterator& operator++();
-    TMessageFieldIterator operator++(int);
-    bool operator==(const TMessageFieldIterator& other) const;
-    bool operator!=(const TMessageFieldIterator& other) const;
-    TFieldMessage* operator*() const;
-    TFieldMessage* operator->() const;
-
-  private:
-    void skipNonMessageFields();
-
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator it_;
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>::iterator end_;
-};
-
-class TMessageFieldsRange {
-  public:
-    TMessageFieldsRange(std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields);
-
-    TMessageFieldIterator begin();
-    TMessageFieldIterator end();
-
-  private:
-    std::unordered_map<int, std::unique_ptr<TFieldBase>>& fields_;
-};
+using TMessageInfoPtr = std::shared_ptr<TMessageInfo>;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -86,6 +50,52 @@ class TFieldMessage : public TFieldBase, public TMessageInfo {
     bool IsMessage() const override {
         return true;
     }
+
+    std::string GetId() const override {
+        return Format("t_{num;name=false;onlydelim;delimiter='_'}", GetPath());
+    }
+};
+
+using TFieldMessagePtr = std::shared_ptr<TFieldMessage>;
+
+////////////////////////////////////////////////////////////////////////////////
+
+class TMessageFieldIterator {
+  public:
+    using iterator_category = std::forward_iterator_tag;
+    using value_type = TFieldMessagePtr;
+    using difference_type = std::ptrdiff_t;
+    using pointer = TFieldMessagePtr*;
+    using reference = TFieldMessagePtr&;
+
+    TMessageFieldIterator(
+        std::map<int, TFieldBasePtr>::iterator it,
+        std::map<int, TFieldBasePtr>::iterator end
+    );
+
+    TMessageFieldIterator& operator++();
+    TMessageFieldIterator operator++(int);
+    bool operator==(const TMessageFieldIterator& other) const;
+    bool operator!=(const TMessageFieldIterator& other) const;
+    TFieldMessagePtr operator*() const;
+    TFieldMessagePtr operator->() const;
+
+  private:
+    void skipNonMessageFields();
+
+    std::map<int, TFieldBasePtr>::iterator it_;
+    std::map<int, TFieldBasePtr>::iterator end_;
+};
+
+class TMessageFieldsRange {
+  public:
+    TMessageFieldsRange(std::map<int, TFieldBasePtr>& fields);
+
+    TMessageFieldIterator begin();
+    TMessageFieldIterator end();
+
+  private:
+    std::map<int, TFieldBasePtr>& fields_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -95,7 +105,15 @@ class TRootMessage : public TRootBase, public TMessageInfo {
     TRootMessage(TTableConfigPtr config)
         : TRootBase(config),
           TMessageInfo(GetDescriptor()) {}
+
+    std::string GetId() const override {
+        return Format("t_{}", GetPath().number());
+    }
 };
+
+using TRootMessagePtr = std::shared_ptr<TRootMessage>;
+
+void RegisterRootMessage(TTableConfigPtr config);
 
 ////////////////////////////////////////////////////////////////////////////////
 
