@@ -6,10 +6,58 @@ namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void TPathManager::RegisterEntry(const TMessagePath& path, const std::string& name) {
+void TPathManager::RegisterField(const TMessagePath& path, const std::string& name) {
     size_t hash = std::hash<TMessagePath>{}(path.parent());
     EntryNameToEntry_[hash][name] = path.number();
     PathToEntryName_[GetHash(hash, path.number())] = name;
+}
+
+void TPathManager::RegisterRepeatedField(const TMessagePath& path, const std::string& name) {
+    size_t hash = std::hash<TMessagePath>{}(path.parent());
+    EntryNameToEntry_[hash][name] = path.number();
+    PathToEntryName_[GetHash(hash, path.number())] = name;
+    RepeatedFields_.emplace(GetHash(hash, path.number()));
+}
+
+void TPathManager::RegisterMapField(
+    const TMessagePath& path,
+    const std::string& name,
+    google::protobuf::FieldDescriptor::Type keyType
+) {
+    size_t hash = std::hash<TMessagePath>{}(path.parent());
+    EntryNameToEntry_[hash][name] = path.number();
+    PathToEntryName_[GetHash(hash, path.number())] = name;
+    MapFields_[GetHash(hash, path.number())] = keyType;
+}
+
+TPathManager::EFieldType TPathManager::FieldType(const TMessagePath& path) const {
+    auto hash = std::hash<TMessagePath>{}(path);
+    if (RepeatedFields_.contains(hash)) {
+        return EFieldType::Repeated;
+    }
+    if (MapFields_.contains(hash)) {
+        return EFieldType::Map;
+    }
+    return EFieldType::Simple;
+}
+
+TPathManager::EFieldType TPathManager::FieldType(const std::vector<uint32_t>& path) const {
+    auto hash = GetHash(path);
+    if (RepeatedFields_.contains(hash)) {
+        return EFieldType::Repeated;
+    }
+    if (MapFields_.contains(hash)) {
+        return EFieldType::Map;
+    }
+    return EFieldType::Simple;
+}
+
+google::protobuf::FieldDescriptor::Type TPathManager::MapType(const TMessagePath& path) const {
+    return MapFields_.at(std::hash<TMessagePath>{}(path));
+}
+
+google::protobuf::FieldDescriptor::Type TPathManager::MapType(const std::vector<uint32_t>& path) const {
+    return MapFields_.at(GetHash(path));
 }
 
 std::string TPathManager::EntryName(const TMessagePath& path) const {
@@ -28,8 +76,12 @@ std::vector<std::string> TPathManager::ToString(const TMessagePath& path) const 
     return result;
 }
 
-uint32_t TPathManager::GetEntry(const TMessagePath& path, const std::string& entry) {
-    return EntryNameToEntry_[std::hash<TMessagePath>{}(path)][entry];
+size_t TPathManager::GetEntry(const TMessagePath& path, const std::string& entry) const {
+    return EntryNameToEntry_.at(std::hash<TMessagePath>{}(path)).at(entry);
+}
+
+size_t TPathManager::GetEntry(const std::vector<uint32_t>& path, const std::string& entry) const {
+    return EntryNameToEntry_.at(GetHash(path)).at(entry);
 }
 
 bool TPathManager::PathRegistered(const TMessagePath& path) const {
@@ -39,23 +91,29 @@ bool TPathManager::PathRegistered(const TMessagePath& path) const {
 ////////////////////////////////////////////////////////////////////////////////
 
 TMessagePath::TMessagePath(uint32_t entry)
-    : Path_({entry}) {}
+    : Path_({entry}), WaitIndex_(false) {}
 
 TMessagePath::TMessagePath(const std::string& entry)
-    : Path_({TPathManager::GetInstance().GetEntry({}, entry)}) {}
+    : Path_({}), WaitIndex_(false)
+{
+    for (const auto& entry : NCommon::Split(entry, "/")) { AppendEntry(entry); }
+}
 
 TMessagePath::TMessagePath(const std::vector<uint32_t>& entries)
-    : Path_(entries) {}
+    : Path_(entries), WaitIndex_(false) {}
 
 TMessagePath::TMessagePath(const TMessagePath& other)
-    : Path_(other.Path_) {}
+    : Path_(other.Path_), WaitIndex_(false) {}
 
 TMessagePath::TMessagePath(TMessagePath&& other) noexcept
-    : Path_(std::move(other.Path_)) {}
+    : Path_(std::move(other.Path_)), WaitIndex_(false) {}
 
 TMessagePath& TMessagePath::operator=(const TMessagePath& other) {
     if (this != &other) {
         Path_ = other.Path_;
+        Indexes_ = other.Indexes_;
+        WaitIndex_ = other.WaitIndex_;
+        IndexType_ = other.IndexType_;
     }
     return *this;
 }
@@ -74,30 +132,94 @@ uint32_t TMessagePath::at(int index) const {
     return Path_[index];
 }
 
-TMessagePath& TMessagePath::operator/=(const TMessagePath& other) {
-    Path_.insert(Path_.end(), other.Path_.begin(), other.Path_.end());
-    return *this;
-}
-
 TMessagePath& TMessagePath::operator/=(uint32_t entry) {
-    Path_.push_back(entry);
+    AppendEntry(entry);
     return *this;
 }
 
 TMessagePath& TMessagePath::operator/=(const std::string& entry) {
-    Path_.push_back(NOrm::NRelation::TPathManager::GetInstance().GetEntry(Path_, entry));
+    for (const auto& entry : NCommon::Split(entry, "/")) { AppendEntry(entry); }
     return *this;
+}
+
+void TMessagePath::AppendEntry(const std::string& entry) {
+    if (WaitIndex_) {
+        if (entry == "*") {
+            Indexes_.emplace_back(TAllIndex());
+        } else {
+            switch (IndexType_) {
+                case google::protobuf::FieldDescriptor::TYPE_INT32:
+                case google::protobuf::FieldDescriptor::TYPE_INT64:
+                case google::protobuf::FieldDescriptor::TYPE_UINT32:
+                case google::protobuf::FieldDescriptor::TYPE_UINT64:
+                    Indexes_.push_back(std::stoll(entry));
+                    break;
+                case google::protobuf::FieldDescriptor::TYPE_FIXED32:
+                case google::protobuf::FieldDescriptor::TYPE_FIXED64:
+                case google::protobuf::FieldDescriptor::TYPE_FLOAT:
+                case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
+                    Indexes_.push_back(std::stod(entry));
+                    break;
+                case google::protobuf::FieldDescriptor::TYPE_STRING:
+                case google::protobuf::FieldDescriptor::TYPE_BYTES:
+                    Indexes_.push_back(entry);
+                    break;
+                default:
+                    THROW("Uncapable type of index in path");
+            }
+        }
+        WaitIndex_ = false;
+        return;
+    }
+    const auto& pathManger = TPathManager::GetInstance();
+    Path_.push_back(pathManger.GetEntry(Path_, entry));
+    switch (TPathManager::GetInstance().FieldType(Path_)) {
+        case TPathManager::EFieldType::Repeated:
+            WaitIndex_ = true;
+            IndexType_ = google::protobuf::FieldDescriptor::TYPE_UINT64;
+            break;
+        case TPathManager::EFieldType::Map:
+            WaitIndex_ = true;
+            IndexType_ = TPathManager::GetInstance().MapType(Path_);
+            break;
+        default:
+            break;
+    }
+}
+
+void TMessagePath::AppendEntry(uint32_t entry) {
+    if (WaitIndex_) {
+        ASSERT(IndexType_ == google::protobuf::FieldDescriptor::TYPE_UINT64, "Uncapable type of index in path");
+        Indexes_.push_back(static_cast<long long>(entry));
+        WaitIndex_ = false;
+        return;
+    }
+    const auto& pathManger = TPathManager::GetInstance();
+    Path_.push_back(entry);
+    switch (TPathManager::GetInstance().FieldType(Path_)) {
+        case TPathManager::EFieldType::Repeated:
+            WaitIndex_ = true;
+            IndexType_ = google::protobuf::FieldDescriptor::TYPE_UINT64;
+            break;
+        case TPathManager::EFieldType::Map:
+            WaitIndex_ = true;
+            IndexType_ = TPathManager::GetInstance().MapType(Path_);
+            break;
+        default:
+            break;
+    }
 }
 
 TMessagePath& TMessagePath::operator/=(const google::protobuf::FieldDescriptor* desc) {
     Path_.push_back(desc->number());
-    NOrm::NRelation::TPathManager::GetInstance().RegisterEntry(Path_, desc->name());
+    if (desc->is_repeated()) {
+        NOrm::NRelation::TPathManager::GetInstance().RegisterRepeatedField(Path_, desc->name());
+    } else if (desc->is_map()) {
+        NOrm::NRelation::TPathManager::GetInstance().RegisterMapField(Path_, desc->name(), desc->message_type()->field(0)->type());
+    } else {
+        NOrm::NRelation::TPathManager::GetInstance().RegisterField(Path_, desc->name());
+    }
     return *this;
-}
-
-TMessagePath TMessagePath::operator/(const TMessagePath& other) const {
-    TMessagePath temp = *this;
-    return temp /= other;
 }
 
 TMessagePath TMessagePath::operator/(uint32_t entry) const {
@@ -123,7 +245,11 @@ TMessagePath TMessagePath::parent() const {
     if (empty()) {
         return TMessagePath{};
     }
-    return TMessagePath(Path_.begin(), std::prev(Path_.end()));
+    std::vector<uint32_t> newPath(Path_.begin(), std::prev(Path_.end()));
+    if (TPathManager::GetInstance().FieldType(newPath) != TPathManager::EFieldType::Simple && !WaitIndex_) {
+        return TMessagePath(newPath.begin(), newPath.end(), Indexes_.begin(), std::prev(Indexes_.end()));
+    }
+    return TMessagePath(Path_.begin(), std::prev(Path_.end()), Indexes_.begin(), Indexes_.end());
 }
 
 std::vector<uint32_t>::iterator TMessagePath::begin() {
@@ -260,6 +386,13 @@ bool TMessagePath::isChildOf(const TMessagePath& other) const {
 
 bool TMessagePath::isDescendantOf(const TMessagePath& other) const {
     return other.isAncestorOf(*this);
+}
+
+size_t TMessagePath::GetIndexSize() const {
+    return Indexes_.size();
+}
+TMessagePath::TIndex TMessagePath::GetIndex(size_t idx) const {
+    return Indexes_.at(idx);
 }
 
 } // namespace NRelation

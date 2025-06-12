@@ -33,6 +33,8 @@ class TMessageInfo : virtual public TMessageBase {
   protected:
     std::string MessageName_;
     std::map<int, TFieldBasePtr> Fields_;
+    std::map<int, TFieldBasePtr> TablePrimaryFields_;
+    std::vector<google::protobuf::FieldDescriptor::Type> IndexFields_;
     std::set<int> SubMessages_;
     const google::protobuf::Descriptor* Descriptor_;
 };

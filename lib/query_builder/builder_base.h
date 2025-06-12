@@ -219,6 +219,9 @@ class TColumn : public TClause {
     void SetPath(const TMessagePath& path) {
         Path_ = path;
     }
+    void SetPath(const std::string& path) {
+        Path_ = path;
+    }
     NQuery::EColumnType GetType() const {
         return Type_;
     }
@@ -774,5 +777,12 @@ class TBuilderBase {
 
     virtual std::string JoinQueries(const std::vector<std::string>& queries) = 0;
 };
+
+class TBuilderFabricBase {
+  public:
+    virtual TBuilderBasePtr NewBuilder() const;
+};
+
+using TBuilderFabricPtr = std::shared_ptr<TBuilderFabricBase>;
 
 } // namespace NOrm::NRelation::Builder

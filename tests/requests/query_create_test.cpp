@@ -157,8 +157,8 @@ TEST_F(QueryBuilderTest, ExpressionTest) {
 // Тесты для SELECT запросов
 TEST_F(QueryBuilderTest, SelectQueryTest) {
     // Создаем колонки
-    TMessagePath path1 = nestedPath / "simple" / "name";
-    TMessagePath path2 = nestedPath / "simple" / "active";
+    TMessagePath path1 = nestedPath / "simple/name";
+    TMessagePath path2 = nestedPath / "simple/active";
     auto col1 = Col(path1);
     auto col2 = Col(path2);
     
@@ -202,11 +202,9 @@ TEST_F(QueryBuilderTest, SelectQueryTest) {
 // Тесты для INSERT запросов
 TEST_F(QueryBuilderTest, InsertQueryTest) {
     // Создаем колонки
-    TMessagePath path1 = nestedPath / "simple" / "name";
-    TMessagePath path2 = nestedPath / "simple" / "active";
-    auto col1 = Col(path1);
-    auto col2 = Col(path2);
-    
+    auto col1 = Col("nested_message/simple/name");
+    auto col2 = Col("nested_message/simple/active");
+
     // Базовый INSERT
     auto insert = Insert();
     insert.Columns(col1, col2)
@@ -261,8 +259,8 @@ TEST_F(QueryBuilderTest, InsertQueryTest) {
 // Тесты для UPDATE запросов
 TEST_F(QueryBuilderTest, UpdateQueryTest) {
     // Создаем колонки
-    TMessagePath path1 = nestedPath / "simple" / "name";
-    TMessagePath path2 = nestedPath / "simple" / "active";
+    TMessagePath path1 = nestedPath / "simple/name";
+    TMessagePath path2 = nestedPath / "simple/active";
     auto col1 = Col(path1);
     auto col2 = Col(path2);
     
@@ -299,7 +297,7 @@ TEST_F(QueryBuilderTest, UpdateQueryTest) {
 // Тесты для DELETE запросов
 TEST_F(QueryBuilderTest, DeleteQueryTest) {
     // Создаем колонку
-    TMessagePath path = nestedPath / "simple" / "name";
+    TMessagePath path = nestedPath / "simple/name";
     auto col = Col(path);
     
     // Базовый DELETE
@@ -359,7 +357,7 @@ TEST_F(QueryBuilderTest, TransactionTest) {
 // Тесты для корневого TQuery
 TEST_F(QueryBuilderTest, QueryTest) {
     // Создаем различные типы запросов
-    TMessagePath path = nestedPath / "simple" / "name";
+    TMessagePath path = nestedPath / "simple/name";
     auto col = Col(path);
     
     auto select = Select(col)

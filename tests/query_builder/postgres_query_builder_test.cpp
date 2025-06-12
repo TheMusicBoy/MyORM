@@ -1,6 +1,6 @@
 #include <google/protobuf/descriptor.h>
 #include <gtest/gtest.h>
-#include <relation/builders/postgres.h>
+#include <query_builder/builders/postgres.h>
 #include <relation/field.h>
 #include <relation/message.h>
 #include <relation/relation_manager.h>
@@ -290,9 +290,7 @@ TEST_F(PostgresQueryBuilderTest, LogicalExpressions) {
 TEST_F(PostgresQueryBuilderTest, NullCheckExpressions) {
     // Создаем операнд
     auto col = std::make_shared<TColumn>();
-    TMessagePath path("simple_message");
-    path /= "id";
-    col->SetPath(path);
+    col->SetPath("simple_message/id");
     col->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     // Тестируем IS NULL
@@ -312,15 +310,11 @@ TEST_F(PostgresQueryBuilderTest, NullCheckExpressions) {
 TEST_F(PostgresQueryBuilderTest, ComplexSelectQuery) {
     // Создаем колонки для SELECT
     auto idCol = std::make_shared<TColumn>();
-    TMessagePath idPath("simple_message");
-    idPath /= "id";
-    idCol->SetPath(idPath);
+    idCol->SetPath("simple_message/id");
     idCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     auto nameCol = std::make_shared<TColumn>();
-    TMessagePath namePath("simple_message");
-    namePath /= "name";
-    nameCol->SetPath(namePath);
+    nameCol->SetPath("simple_message/name");
     nameCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     // Создаем условие WHERE id > 10
@@ -346,14 +340,10 @@ TEST_F(PostgresQueryBuilderTest, ComplexSelectQuery) {
 TEST_F(PostgresQueryBuilderTest, JoinOperations) {
     // Создаем колонки для условия соединения
     auto simpleIdCol = std::make_shared<TColumn>();
-    TMessagePath simpleIdPath("simple_message");
-    simpleIdPath /= "id";
-    simpleIdCol->SetPath(simpleIdPath);
+    simpleIdCol->SetPath("simple_message/id");
 
     auto nestedRefCol = std::make_shared<TColumn>();
-    TMessagePath nestedRefPath("nested_message");
-    nestedRefPath /= "tags";
-    nestedRefCol->SetPath(nestedRefPath);
+    nestedRefCol->SetPath("nested_message/tags");
 
     // Создаем условие JOIN ON simple.id = nested.simple_ref
     auto joinCondition = std::make_shared<TExpression>();
@@ -375,25 +365,17 @@ TEST_F(PostgresQueryBuilderTest, JoinOperations) {
 TEST_F(PostgresQueryBuilderTest, SelectWithFromAndJoin) {
     // Создаем колонки для SELECT
     auto simpleIdCol = std::make_shared<TColumn>();
-    TMessagePath simpleIdPath("simple_message");
-    simpleIdPath /= "id";
-    simpleIdCol->SetPath(simpleIdPath);
+    simpleIdCol->SetPath("simple_message/id");
 
     auto simpleNameCol = std::make_shared<TColumn>();
-    TMessagePath simpleNamePath("simple_message");
-    simpleNamePath /= "name";
-    simpleNameCol->SetPath(simpleNamePath);
+    simpleNameCol->SetPath("simple_message/name");
 
     auto nestedValueCol = std::make_shared<TColumn>();
-    TMessagePath nestedValuePath("nested_message");
-    nestedValuePath /= "tags";
-    nestedValueCol->SetPath(nestedValuePath);
+    nestedValueCol->SetPath("nested_message/tags");
 
     // Создаем условие JOIN
     auto nestedRefCol = std::make_shared<TColumn>();
-    TMessagePath nestedRefPath("nested_message");
-    nestedRefPath /= "tags";
-    nestedRefCol->SetPath(nestedRefPath);
+    nestedRefCol->SetPath("nested_message/tags");
 
     auto joinCondition = std::make_shared<TExpression>();
     joinCondition->SetExpressionType(NOrm::NQuery::EExpressionType::equals);
@@ -428,15 +410,11 @@ TEST_F(PostgresQueryBuilderTest, SelectWithFromAndJoin) {
 TEST_F(PostgresQueryBuilderTest, ComplexInsertQuery) {
     // Создаем колонки для INSERT
     auto idCol = std::make_shared<TColumn>();
-    TMessagePath idPath("simple_message");
-    idPath /= "id";
-    idCol->SetPath(idPath);
+    idCol->SetPath("simple_message/id");
     idCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     auto nameCol = std::make_shared<TColumn>();
-    TMessagePath namePath("simple_message");
-    namePath /= "name";
-    nameCol->SetPath(namePath);
+    nameCol->SetPath("simple_message/name");
     nameCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     // Создаем значения для INSERT
@@ -463,9 +441,7 @@ TEST_F(PostgresQueryBuilderTest, ComplexInsertQuery) {
 TEST_F(PostgresQueryBuilderTest, AggregateFunctionExpressions) {
     // Создаем операнд
     auto col = std::make_shared<TColumn>();
-    TMessagePath path("simple_message");
-    path /= "id";
-    col->SetPath(path);
+    col->SetPath("simple_message/id");
     col->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     // Тестируем COUNT
@@ -491,9 +467,7 @@ TEST_F(PostgresQueryBuilderTest, AggregateFunctionExpressions) {
 TEST_F(PostgresQueryBuilderTest, UpdateMaxToMinValue) {
     // Создаем колонку для ID
     auto idCol = std::make_shared<TColumn>();
-    TMessagePath idPath("simple_message");
-    idPath /= "id";
-    idCol->SetPath(idPath);
+    idCol->SetPath("simple_message/id");
     idCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     // Создаем подзапрос MIN
@@ -533,15 +507,11 @@ TEST_F(PostgresQueryBuilderTest, UpdateMaxToMinValue) {
 TEST_F(PostgresQueryBuilderTest, UpdateMultipleMaxToMinValues) {
     // Создаем колонки
     auto idCol = std::make_shared<TColumn>();
-    TMessagePath idPath("simple_message");
-    idPath /= "id";
-    idCol->SetPath(idPath);
+    idCol->SetPath("simple_message/id");
     idCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     auto nameCol = std::make_shared<TColumn>();
-    TMessagePath namePath("simple_message");
-    namePath /= "name";
-    nameCol->SetPath(namePath);
+    nameCol->SetPath("simple_message/name");
     nameCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     // Создаем подзапросы MIN для обоих колонок
@@ -605,9 +575,7 @@ TEST_F(PostgresQueryBuilderTest, UpdateMultipleMaxToMinValues) {
 TEST_F(PostgresQueryBuilderTest, SwapMaxAndMinValues) {
     // Создаем колонку для ID
     auto idCol = std::make_shared<TColumn>();
-    TMessagePath idPath("simple_message");
-    idPath /= "id";
-    idCol->SetPath(idPath);
+    idCol->SetPath("simple_message/id");
     idCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     // Создаем временную переменную для хранения макс. значения
@@ -666,15 +634,11 @@ TEST_F(PostgresQueryBuilderTest, SwapMaxAndMinValues) {
 TEST_F(PostgresQueryBuilderTest, UpdateWithComplexConditions) {
     // Создаем колонки
     auto idCol = std::make_shared<TColumn>();
-    TMessagePath idPath("simple_message");
-    idPath /= "id";
-    idCol->SetPath(idPath);
+    idCol->SetPath("simple_message/id");
     idCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     auto activeCol = std::make_shared<TColumn>();
-    TMessagePath activePath("simple_message");
-    activePath /= "active";
-    activeCol->SetPath(activePath);
+    activeCol->SetPath("simple_message/active");
     activeCol->SetType(NOrm::NQuery::EColumnType::ESingular);
 
     // Создаем выражение MAX(id)
@@ -723,9 +687,7 @@ TEST_F(PostgresQueryBuilderTest, UpdateWithComplexConditions) {
 TEST_F(PostgresQueryBuilderTest, DeleteWithTableName) {
     // Создаем колонки для условия WHERE
     auto idCol = std::make_shared<TColumn>();
-    TMessagePath idPath("simple_message");
-    idPath /= "id";
-    idCol->SetPath(idPath);
+    idCol->SetPath("simple_message/id");
 
     // Создаем значение для условия
     auto idValue = std::make_shared<TInt>();

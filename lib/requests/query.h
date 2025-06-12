@@ -5,7 +5,6 @@
 #include <relation/path.h>
 #include <memory>
 #include <string>
-#include <regex>
 #include <vector>
 
 namespace NOrm::NRelation {
@@ -485,6 +484,7 @@ TInsert& TInsert::Columns(Args&&... args) {
 // Функции-фабрики для создания объектов
 TAll All();
 TColumn Col(const TMessagePath& path);
+inline TColumn Col(const std::string& path) { return Col(TMessagePath(path)); }
 TColumn Excluded(const TMessagePath& path);
 TDefault Default();
 template <typename... Args>

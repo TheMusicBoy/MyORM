@@ -1,10 +1,9 @@
 #pragma once
 
-#include <relation/query_builder.h>
+#include <query_builder/builder_base.h>
 #include <memory>
 #include <string>
 #include <vector>
-#include <stack>
 
 namespace NOrm::NRelation::Builder {
 
@@ -170,5 +169,7 @@ private:
 
     StackWrapper<NOrm::NRelation::Builder::EClauseType> Stack_;
 };
+
+using TPostgresBuilderPtr = std::shared_ptr<TPostgresBuilder>;
 
 } // namespace NOrm::NRelation::Builder

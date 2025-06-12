@@ -1,5 +1,4 @@
 #include <requests/query.h>
-#include <relation/query_builder.h>
 
 namespace NOrm::NRelation {
 
@@ -218,6 +217,19 @@ void TColumnImpl::ToProto(NApi::TQuery* output) const {
     for (const auto& num : Path_) {
         columnVal->add_field_path(num);
     }
+    for (size_t pos = 0; pos < Path_.GetIndexSize(); pos++) {
+        const auto& idx = Path_.GetIndex(pos);
+        if (std::holds_alternative<TMessagePath::TAllIndex>(idx)) {
+            NRelation::TAll().ToProto(output);
+        } else if (std::holds_alternative<int64_t>(idx)) {
+            NRelation::TInt().SetValue(std::get<int64_t>(idx)).ToProto(output);
+        } else if (std::holds_alternative<double>(idx)) {
+            NRelation::TFloat().SetValue(std::get<double>(idx)).ToProto(output);
+        } else if (std::holds_alternative<std::string>(idx)) {
+            NRelation::TString().SetValue(std::get<std::string>(idx)).ToProto(output);
+        }
+        columnVal->add_indexes(output->clauses_size() - 1);
+    }
     columnVal->set_type(Type_);
     
     output->add_clauses()->set_allocated_column(columnVal);
@@ -225,7 +237,27 @@ void TColumnImpl::ToProto(NApi::TQuery* output) const {
 
 void TColumnImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     const auto& column = input.clauses().at(startPoint).column();
-    Path_ = TMessagePath(column.field_path().begin(), column.field_path().end());
+    std::vector<TMessagePath::TIndex> indexes;
+    for (const auto& idx : column.indexes()) {
+        const auto& idxClause = input.clauses().at(idx);
+        switch (idxClause.value_case()) {
+            case NOrm::NApi::TClause::ValueCase::kAll:
+                indexes.emplace_back(TMessagePath::TAllIndex());
+                break;
+            case NOrm::NApi::TClause::ValueCase::kInteger:
+                indexes.emplace_back(idxClause.integer().value());
+                break;
+            case NOrm::NApi::TClause::ValueCase::kFloat:
+                indexes.emplace_back(idxClause.float_().value());
+                break;
+            case NOrm::NApi::TClause::ValueCase::kString:
+                indexes.emplace_back(idxClause.string().value());
+                break;
+            default:
+                THROW("Uncapable type of index in path");
+        }
+    }
+    Path_ = TMessagePath(column.field_path().begin(), column.field_path().end(), indexes.begin(), indexes.end());
     Type_ = column.type();
 }
 

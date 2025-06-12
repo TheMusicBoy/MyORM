@@ -4,12 +4,22 @@
 
 #include <common/format.h>
 
+#include <variant>
+
 namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
 
 inline size_t GetHash(size_t parent, size_t entry) {
     return parent ^ (std::hash<size_t>{}(entry) + 0x9e3779b9 + (parent << 6) + (parent >> 2));
+}
+
+inline size_t GetHash(const std::vector<uint32_t>& path) {
+    size_t hash_value = 0;
+    for (const auto& entry : path) {
+        hash_value = NOrm::NRelation::GetHash(hash_value, entry);
+    }
+    return hash_value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,13 +36,33 @@ class TPathManager {
     TPathManager(const TPathManager&) = delete;
     TPathManager& operator=(const TPathManager&) = delete;
 
-    void RegisterEntry(const TMessagePath& path, const std::string& name);
+    enum EFieldType {
+        Simple,
+        Repeated,
+        Map
+    };
+
+    void RegisterField(const TMessagePath& path, const std::string& name);
+
+    void RegisterRepeatedField(const TMessagePath& path, const std::string& name);
+
+    void RegisterMapField(const TMessagePath& path, const std::string& name, google::protobuf::FieldDescriptor::Type keyType);
+
+    EFieldType FieldType(const TMessagePath& path) const;
+
+    EFieldType FieldType(const std::vector<uint32_t>& path) const;
+
+    google::protobuf::FieldDescriptor::Type MapType(const TMessagePath& path) const;
+
+    google::protobuf::FieldDescriptor::Type MapType(const std::vector<uint32_t>& path) const;
 
     std::string EntryName(const TMessagePath& path) const;
 
     std::vector<std::string> ToString(const TMessagePath& path) const;
 
-    uint32_t GetEntry(const TMessagePath& path, const std::string& entry);
+    size_t GetEntry(const TMessagePath& path, const std::string& entry) const;
+
+    size_t GetEntry(const std::vector<uint32_t>& path, const std::string& entry) const;
 
     bool PathRegistered(const TMessagePath& path) const;
 
@@ -42,6 +72,8 @@ class TPathManager {
     
     std::unordered_map<size_t, std::string> PathToEntryName_;
     std::unordered_map<size_t, std::unordered_map<std::string, size_t>> EntryNameToEntry_;
+    std::unordered_set<size_t> RepeatedFields_;
+    std::unordered_map<size_t, google::protobuf::FieldDescriptor::Type> MapFields_;
 };
 
 /**
@@ -66,9 +98,9 @@ class TMessagePath {
     TMessagePath(const std::vector<uint32_t>& entries);
 
     // Constructor that initializes with a range of elements
-    template <typename It>
-    TMessagePath(It begin, It end)
-        : Path_(begin, end) {}
+    template <typename EntryIt, typename IdxIt>
+    TMessagePath(EntryIt entryBegin, EntryIt entryEnd, IdxIt idxBegin, IdxIt idxEnd)
+        : Path_(entryBegin, entryEnd), Indexes_(idxBegin, idxEnd), WaitIndex_(false) {}
 
     // Copy constructor
     TMessagePath(const TMessagePath& other);
@@ -85,9 +117,6 @@ class TMessagePath {
     // Retrieve the TMessagePathEntry at the specified index
     uint32_t at(int index) const;
 
-    // Concatenate another TMessagePath to this one
-    TMessagePath& operator/=(const TMessagePath& other);
-
     // Append a TMessagePathEntry to this path
     TMessagePath& operator/=(uint32_t entry);
 
@@ -96,9 +125,6 @@ class TMessagePath {
 
     // Append a protobuf FieldDescriptor to this path
     TMessagePath& operator/=(const google::protobuf::FieldDescriptor* desc);
-
-    // Get TMessagePath resulting from the concatenation with another TMessagePath
-    TMessagePath operator/(const TMessagePath& other) const;
 
     // Get TMessagePath resulting from concatenation with a TMessagePathEntry
     TMessagePath operator/(const std::string& entry) const;
@@ -160,8 +186,22 @@ class TMessagePath {
     bool isChildOf(const TMessagePath& other) const;
     bool isDescendantOf(const TMessagePath& other) const;
 
+    struct TAllIndex {};
+
+    using TIndex = std::variant<TAllIndex, int64_t, double, std::string>;
+
+    size_t GetIndexSize() const;
+    TIndex GetIndex(size_t idx) const;
+
   private:
+    void AppendEntry(const std::string& entry);
+    void AppendEntry(uint32_t entry);
+
     std::vector<uint32_t> Path_;
+    std::vector<TIndex> Indexes_;
+
+    bool WaitIndex_;
+    google::protobuf::FieldDescriptor::Type IndexType_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -173,11 +213,7 @@ namespace std {
 template <>
 struct hash<NOrm::NRelation::TMessagePath> {
     size_t operator()(const NOrm::NRelation::TMessagePath& path) const {
-        size_t hash_value = 0;
-        for (const auto& entry : path.data()) {
-            hash_value = NOrm::NRelation::GetHash(hash_value, entry);
-        }
-        return hash_value;
+        return NOrm::NRelation::GetHash(path.data());
     }
 };
 }

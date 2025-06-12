@@ -18,35 +18,46 @@ DEPENDS
 
 # Common tests
 add_test_ex(common_test
-    SOURCES 
-        ${TESTROOT}/common/format_test.cpp
-        ${TESTROOT}/common/logging_test.cpp
-        ${TESTROOT}/common/program_test.cpp
-    DEPENDS
-        common
+SOURCES 
+    ${TESTROOT}/common/format_test.cpp
+    ${TESTROOT}/common/logging_test.cpp
+    ${TESTROOT}/common/program_test.cpp
+DEPENDS
+    common
 )
 
 # Relation tests
 add_test_ex(relation_test
-    SOURCES 
-        ${TESTROOT}/relation/relation_manager_test.cpp
-        ${TESTROOT}/relation/postgres_query_builder_test.cpp
-    DEPENDS
-        relation
-        test_objects
-        common
+SOURCES 
+    ${TESTROOT}/relation/relation_manager_test.cpp
+DEPENDS
+    relation
+    test_objects
+    common
 )
 
 # Requests tests
 add_test_ex(requests_test
-    SOURCES 
-        ${TESTROOT}/requests/query_create_test.cpp
-    DEPENDS
-        relation
-        requests
-        test_objects
-        common
+SOURCES 
+    ${TESTROOT}/requests/query_create_test.cpp
+DEPENDS
+    relation
+    requests
+    test_objects
+    common
 )
 
-message(STATUS "Test framework configured")
+# Query builder tests
+add_test_ex(query_builder_test
+SOURCES 
+    ${TESTROOT}/query_builder/postgres_query_builder_test.cpp
+DEPENDS
+    relation
+    query_builder
+    requests
+    test_objects
+    common
+)
 
+
+message(STATUS "Test framework configured")

@@ -56,7 +56,7 @@ TRootBase::TRootBase(TTableConfigPtr config)
       CamelCase_(config->CamelCase),
       Descriptor_(google::protobuf::DescriptorPool::generated_pool()->FindMessageTypeByName(config->Scheme)),
       Path_(Number_) {
-    TPathManager::GetInstance().RegisterEntry(Path_, config->SnakeCase);
+    TPathManager::GetInstance().RegisterField(Path_, config->SnakeCase);
 }
 
 const TMessagePath& TRootBase::GetPath() const {

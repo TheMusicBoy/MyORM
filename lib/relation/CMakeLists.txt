@@ -15,10 +15,6 @@ set(SRC
     ${SRCROOT}/field.cpp
     ${SRCROOT}/config.cpp
     ${SRCROOT}/relation_manager.cpp
-    ${SRCROOT}/query_builder.cpp
-
-    ${SRCROOT}/builders/postgres.cpp
-
 )
 
 add_library(relation STATIC ${SRC})

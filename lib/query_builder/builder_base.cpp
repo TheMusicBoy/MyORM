@@ -1,4 +1,4 @@
-#include <relation/query_builder.h>
+#include <query_builder/builder_base.h>
 
 namespace NOrm::NRelation::Builder {
 

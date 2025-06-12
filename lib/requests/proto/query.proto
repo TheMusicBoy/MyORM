@@ -28,7 +28,8 @@ message TAll {}
 
 message TColumn {
     repeated uint32 field_path = 1;
-    NOrm.NQuery.EColumnType type = 2;
+    repeated int32 indexes = 2;
+    NOrm.NQuery.EColumnType type = 3;
 }
 
 message TExpression {
