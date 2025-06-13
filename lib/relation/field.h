@@ -114,7 +114,7 @@ class TPrimitiveFieldInfo : public TFieldBase {
     }
 
     bool AutoIncrement() const {
-        return IsPrimaryKey_;
+        return AutoIncrement_;
     }
 
     // Constructor from google::protobuf::FieldDescriptor*

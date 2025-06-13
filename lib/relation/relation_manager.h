@@ -15,6 +15,58 @@ namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+class TTableInfo {
+public:
+    TTableInfo(const TMessagePath& path, const google::protobuf::Descriptor* desc);
+
+    TTableInfo(const TMessagePath& path, const google::protobuf::FieldDescriptor* desc);
+
+    void AddRelatedMessage(size_t hash);
+
+    void AddRelatedMessage(const TMessagePath& path) { AddRelatedMessage(GetHash(path)); }
+
+    const std::unordered_set<size_t>& GetRelatedMessages() const;
+
+    void AddRelatedField(size_t hash);
+
+    void AddRelatedField(const TMessagePath& path) { AddRelatedField(GetHash(path)); }
+
+    const std::unordered_set<size_t>& GetRelatedFields() const;
+
+    void AddRelatedTable(size_t hash);
+
+    void AddRelatedTable(const TMessagePath& path) { AddRelatedTable(GetHash(path)); }
+
+    const std::unordered_set<size_t>& GetRelatedTables() const;
+
+    const TMessagePath& GetPath() const;
+
+    const std::unordered_set<size_t> GetPrimaryFields() const;
+
+    const std::vector<google::protobuf::FieldDescriptor::Type> GetIndexes() const;
+
+private:
+    TMessagePath Path_;
+    std::unordered_set<size_t> RelatedMessages_;
+    std::unordered_set<size_t> RelatedFields_;
+    std::unordered_set<size_t> RelatedTables_;
+
+    std::unordered_set<size_t> PrimaryFields_;
+    std::vector<google::protobuf::FieldDescriptor::Type> IndexFields_;
+
+};
+
+enum EObjectType {
+    None = 0,
+    Message = 1 << 0,
+    Root = 1 << 1,
+    Field = 1 << 2,
+
+    PrimitiveField = Field,
+    FieldMessage = Field | Message,
+    RootMessage = Root | Message,
+};
+
 /**
  * @class TRelationManager
  * @brief Singleton for managing access to messages and fields.
@@ -34,7 +86,7 @@ public:
     TRelationManager& operator=(TRelationManager&&) = delete;
 
     // Public registration methods
-    void RegisterMessage(TMessageInfoPtr message);
+    void RegisterRoot(TRootMessagePtr root);
     void RegisterField(TFieldBasePtr field);
 
     // Get all messages from the subtree
@@ -46,8 +98,16 @@ public:
     // Get a single message by path
     TMessageInfoPtr GetMessage(const TMessagePath& path);
 
+    // Get a root message by path
+    TRootMessagePtr GetRootMessage(const TMessagePath& path);
+
     // Get a single field by path
-    TPrimitiveFieldInfoPtr GetField(const TMessagePath& path);
+    TFieldBasePtr GetField(const TMessagePath& path);
+
+    uint32_t GetObjectType(const TMessagePath& path) const;
+
+    // Get a primitive field by path
+    TPrimitiveFieldInfoPtr GetPrimitiveField(const TMessagePath& path);
 
     // Get a message and all its ancestors
     std::map<TMessagePath, TMessageBasePtr> GetObjectWithAncestors(const TMessagePath& path);
@@ -58,23 +118,88 @@ public:
     // Set parent message for a field or message
     void SetParentMessage(const TMessageBasePtr entity, const TMessageInfoPtr parent);
 
+    google::protobuf::FieldDescriptor::Type GetIndexType(const TMessagePath& path);
+
     // Clear all indexes and data
     void Clear();
+
+    TTableInfo& GetParentTable(const TMessagePath& path);
 
 private:
     // Private constructor (singleton)
     TRelationManager() = default;
 
     // Indexes for fast access
-    std::unordered_map<TMessagePath, TMessageInfoPtr> MessagesByPath_;
-    std::unordered_map<TMessagePath, TPrimitiveFieldInfoPtr> FieldsByPath_;
+    std::unordered_map<size_t, TMessageInfoPtr> MessagesByPath_;
+    std::unordered_map<size_t, TPrimitiveFieldInfoPtr> PrimitiveFieldsByPath_;
+
+    std::unordered_map<size_t, TRootMessagePtr> RootMessagesByPath_;
+    std::unordered_map<size_t, TFieldBasePtr> FieldsByPath_;
+
+    std::unordered_map<size_t, uint32_t> ObjectType_;
+
+    std::unordered_map<size_t, size_t> ParentTable_;
+    std::unordered_map<size_t, TTableInfo> TableByPath_;
+
+    // For paths
+    std::unordered_map<size_t, std::string> PathToEntryName_;
+    std::unordered_map<size_t, std::unordered_map<std::string, size_t>> EntryNameToEntry_;
+
     std::unordered_map<TMessageBasePtr, TMessageInfoPtr> ParentMap_;
     
     // Caches for expensive operations
     std::unordered_map<TMessagePath, std::map<TMessagePath, TMessageInfoPtr>> MessagesFromSubtreeCache_;
     std::unordered_map<TMessagePath, std::map<TMessagePath, TMessageBasePtr>> ObjectWithAncestorsCache_;
+
+    friend TMessagePath;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
 } // namespace NOrm::NRelation
+
+////////////////////////////////////////////////////////////////////////////////
+
+namespace NCommon {
+
+////////////////////////////////////////////////////////////////////////////////
+
+inline void FormatHandler(std::ostringstream& out, const ::NOrm::NRelation::TMessagePath& container, const FormatOptions& options) {
+    if (options.GetBool("table_id", false)) {
+        FormatOptions opts;
+        opts.Set("delimiter", "_");
+        opts.Set("prefix", "t_");
+        opts.Set("suffix", "");
+        detail::FormatSequenceContainer(out, container.data(), opts);
+        return;
+    }
+
+    if (options.GetBool("full_field_id", false)) {
+        FormatOptions opts;
+        opts.Set("delimiter", "_");
+        opts.Set("prefix", "t_");
+        opts.Set("suffix", "");
+        detail::FormatSequenceContainer(out, container.GetTable(), opts);
+        opts.Set("prefix", ".f_");
+        auto fieldPath = container.GetField();
+        detail::FormatSequenceContainer(out, fieldPath.empty() ? std::vector<uint32_t>({1}) : fieldPath, opts);
+        return;
+    }
+
+    if (options.GetBool("field_id", false)) {
+        out << Format("f_{}", container.number());
+        return;
+    }
+
+    FormatOptions defaultOpts;
+    defaultOpts.Set("delimiter", "/");
+    defaultOpts.Set("prefix", "");
+    defaultOpts.Set("suffix", "");
+    defaultOpts.Set("limit", -1);
+
+    detail::FormatSequenceContainer(out, container.String(), options.Merge(defaultOpts));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+} // namespace NCommon

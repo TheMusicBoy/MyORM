@@ -1,92 +1,9 @@
 #include <relation/path.h>
+#include <relation/relation_manager.h>
 
 #include <common/exception.h>
 
 namespace NOrm::NRelation {
-
-////////////////////////////////////////////////////////////////////////////////
-
-void TPathManager::RegisterField(const TMessagePath& path, const std::string& name) {
-    size_t hash = std::hash<TMessagePath>{}(path.parent());
-    EntryNameToEntry_[hash][name] = path.number();
-    PathToEntryName_[GetHash(hash, path.number())] = name;
-}
-
-void TPathManager::RegisterRepeatedField(const TMessagePath& path, const std::string& name) {
-    size_t hash = std::hash<TMessagePath>{}(path.parent());
-    EntryNameToEntry_[hash][name] = path.number();
-    PathToEntryName_[GetHash(hash, path.number())] = name;
-    RepeatedFields_.emplace(GetHash(hash, path.number()));
-}
-
-void TPathManager::RegisterMapField(
-    const TMessagePath& path,
-    const std::string& name,
-    google::protobuf::FieldDescriptor::Type keyType
-) {
-    size_t hash = std::hash<TMessagePath>{}(path.parent());
-    EntryNameToEntry_[hash][name] = path.number();
-    PathToEntryName_[GetHash(hash, path.number())] = name;
-    MapFields_[GetHash(hash, path.number())] = keyType;
-}
-
-TPathManager::EFieldType TPathManager::FieldType(const TMessagePath& path) const {
-    auto hash = std::hash<TMessagePath>{}(path);
-    if (RepeatedFields_.contains(hash)) {
-        return EFieldType::Repeated;
-    }
-    if (MapFields_.contains(hash)) {
-        return EFieldType::Map;
-    }
-    return EFieldType::Simple;
-}
-
-TPathManager::EFieldType TPathManager::FieldType(const std::vector<uint32_t>& path) const {
-    auto hash = GetHash(path);
-    if (RepeatedFields_.contains(hash)) {
-        return EFieldType::Repeated;
-    }
-    if (MapFields_.contains(hash)) {
-        return EFieldType::Map;
-    }
-    return EFieldType::Simple;
-}
-
-google::protobuf::FieldDescriptor::Type TPathManager::MapType(const TMessagePath& path) const {
-    return MapFields_.at(std::hash<TMessagePath>{}(path));
-}
-
-google::protobuf::FieldDescriptor::Type TPathManager::MapType(const std::vector<uint32_t>& path) const {
-    return MapFields_.at(GetHash(path));
-}
-
-std::string TPathManager::EntryName(const TMessagePath& path) const {
-    return PathToEntryName_.at(std::hash<TMessagePath>{}(path));
-}
-
-std::vector<std::string> TPathManager::ToString(const TMessagePath& path) const {
-    std::vector<std::string> result;
-
-    size_t hash = 0;
-    for (size_t el : path) {
-        hash = GetHash(hash, el);
-        if (!PathToEntryName_.contains(hash)) { return result; }
-        result.emplace_back(PathToEntryName_.at(hash));
-    }
-    return result;
-}
-
-size_t TPathManager::GetEntry(const TMessagePath& path, const std::string& entry) const {
-    return EntryNameToEntry_.at(std::hash<TMessagePath>{}(path)).at(entry);
-}
-
-size_t TPathManager::GetEntry(const std::vector<uint32_t>& path, const std::string& entry) const {
-    return EntryNameToEntry_.at(GetHash(path)).at(entry);
-}
-
-bool TPathManager::PathRegistered(const TMessagePath& path) const {
-    return PathToEntryName_.contains(std::hash<TMessagePath>{}(path));
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -171,19 +88,26 @@ void TMessagePath::AppendEntry(const std::string& entry) {
         WaitIndex_ = false;
         return;
     }
-    const auto& pathManger = TPathManager::GetInstance();
-    Path_.push_back(pathManger.GetEntry(Path_, entry));
-    switch (TPathManager::GetInstance().FieldType(Path_)) {
-        case TPathManager::EFieldType::Repeated:
-            WaitIndex_ = true;
-            IndexType_ = google::protobuf::FieldDescriptor::TYPE_UINT64;
-            break;
-        case TPathManager::EFieldType::Map:
-            WaitIndex_ = true;
-            IndexType_ = TPathManager::GetInstance().MapType(Path_);
-            break;
-        default:
-            break;
+    auto& relationManager = TRelationManager::GetInstance();
+    Path_.push_back(relationManager.EntryNameToEntry_.at(GetHash(Path_)).at(entry));
+    if (auto indexType = relationManager.GetIndexType(Path_)) {
+        switch (indexType) {
+            case google::protobuf::FieldDescriptor::TYPE_INT32:
+            case google::protobuf::FieldDescriptor::TYPE_INT64:
+            case google::protobuf::FieldDescriptor::TYPE_UINT32:
+            case google::protobuf::FieldDescriptor::TYPE_UINT64:
+            case google::protobuf::FieldDescriptor::TYPE_FIXED32:
+            case google::protobuf::FieldDescriptor::TYPE_FIXED64:
+            case google::protobuf::FieldDescriptor::TYPE_FLOAT:
+            case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
+            case google::protobuf::FieldDescriptor::TYPE_STRING:
+            case google::protobuf::FieldDescriptor::TYPE_BYTES:
+                WaitIndex_ = true;
+                IndexType_ = indexType;
+                break;
+            default:
+                THROW("Uncapable type of index in path");
+        }
     }
 }
 
@@ -194,31 +118,31 @@ void TMessagePath::AppendEntry(uint32_t entry) {
         WaitIndex_ = false;
         return;
     }
-    const auto& pathManger = TPathManager::GetInstance();
+    auto& relationManager = TRelationManager::GetInstance();
     Path_.push_back(entry);
-    switch (TPathManager::GetInstance().FieldType(Path_)) {
-        case TPathManager::EFieldType::Repeated:
-            WaitIndex_ = true;
-            IndexType_ = google::protobuf::FieldDescriptor::TYPE_UINT64;
-            break;
-        case TPathManager::EFieldType::Map:
-            WaitIndex_ = true;
-            IndexType_ = TPathManager::GetInstance().MapType(Path_);
-            break;
-        default:
-            break;
+    if (auto indexType = relationManager.GetIndexType(Path_)) {
+        switch (indexType) {
+            case google::protobuf::FieldDescriptor::TYPE_INT32:
+            case google::protobuf::FieldDescriptor::TYPE_INT64:
+            case google::protobuf::FieldDescriptor::TYPE_UINT32:
+            case google::protobuf::FieldDescriptor::TYPE_UINT64:
+            case google::protobuf::FieldDescriptor::TYPE_FIXED32:
+            case google::protobuf::FieldDescriptor::TYPE_FIXED64:
+            case google::protobuf::FieldDescriptor::TYPE_FLOAT:
+            case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
+            case google::protobuf::FieldDescriptor::TYPE_STRING:
+            case google::protobuf::FieldDescriptor::TYPE_BYTES:
+                WaitIndex_ = true;
+                IndexType_ = indexType;
+                break;
+            default:
+                THROW("Uncapable type of index in path");
+        }
     }
 }
 
 TMessagePath& TMessagePath::operator/=(const google::protobuf::FieldDescriptor* desc) {
     Path_.push_back(desc->number());
-    if (desc->is_repeated()) {
-        NOrm::NRelation::TPathManager::GetInstance().RegisterRepeatedField(Path_, desc->name());
-    } else if (desc->is_map()) {
-        NOrm::NRelation::TPathManager::GetInstance().RegisterMapField(Path_, desc->name(), desc->message_type()->field(0)->type());
-    } else {
-        NOrm::NRelation::TPathManager::GetInstance().RegisterField(Path_, desc->name());
-    }
     return *this;
 }
 
@@ -237,6 +161,22 @@ TMessagePath TMessagePath::operator/(const google::protobuf::FieldDescriptor* de
     return temp /= desc;
 }
 
+std::vector<std::string> TMessagePath::String() const {
+    auto& relationManager = TRelationManager::GetInstance();
+    std::vector<std::string> result;
+    size_t hash = 0;
+    for (size_t el : Path_) {
+        hash = GetNextPathEntryHash(hash, el);
+        if (!relationManager.PathToEntryName_.contains(hash)) { return result; }
+        result.emplace_back(relationManager.PathToEntryName_.at(hash));
+    }
+    return result;
+}
+
+const std::vector<uint32_t>& TMessagePath::Number() const {
+    return Path_;
+}
+
 bool TMessagePath::empty() const {
     return Path_.empty();
 }
@@ -245,11 +185,23 @@ TMessagePath TMessagePath::parent() const {
     if (empty()) {
         return TMessagePath{};
     }
-    std::vector<uint32_t> newPath(Path_.begin(), std::prev(Path_.end()));
-    if (TPathManager::GetInstance().FieldType(newPath) != TPathManager::EFieldType::Simple && !WaitIndex_) {
-        return TMessagePath(newPath.begin(), newPath.end(), Indexes_.begin(), std::prev(Indexes_.end()));
+    TMessagePath result = *this;
+    result.PopEntry();
+    return result;
+}
+
+TMessagePath TMessagePath::parent_() const {
+    TMessagePath result = *this;
+    result.Indexes_.clear();
+    result.Path_.pop_back();
+    return result;
+}
+
+void TMessagePath::PopEntry() {
+    if (TRelationManager::GetInstance().GetIndexType(Path_) && !WaitIndex_) {
+        Indexes_.pop_back();
     }
-    return TMessagePath(Path_.begin(), std::prev(Path_.end()), Indexes_.begin(), Indexes_.end());
+    Path_.pop_back();
 }
 
 std::vector<uint32_t>::iterator TMessagePath::begin() {
@@ -288,14 +240,19 @@ uint32_t& TMessagePath::back() {
     return *std::prev(Path_.end());
 }
 
+size_t TMessagePath::size() const {
+    return Path_.size();
+}
+
 uint32_t TMessagePath::number() const {
     return back();
 }
 
 std::string TMessagePath::name() const {
-    const auto& manager = TPathManager::GetInstance();
-    ASSERT(!manager.PathRegistered(*this), "Attept to access unknown name in TMessagePath");
-    return manager.EntryName(*this);
+    const auto& manager = TRelationManager::GetInstance();
+    auto pathHash = GetHash(Path_);
+    ASSERT(manager.PathToEntryName_.contains(pathHash), "Attept to access unknown name in TMessagePath");
+    return manager.PathToEntryName_.at(pathHash);
 }
 
 const std::vector<uint32_t>& TMessagePath::data() const {
@@ -395,4 +352,40 @@ TMessagePath::TIndex TMessagePath::GetIndex(size_t idx) const {
     return Indexes_.at(idx);
 }
 
-} // namespace NRelation
+TMessagePath TMessagePath::GetTablePath() const {
+    const auto& table = TRelationManager::GetInstance().GetParentTable(Path_);
+    return table.GetPath();
+}
+
+std::vector<uint32_t> TMessagePath::GetTable() const {
+    return GetTablePath().data();
+}
+
+std::vector<uint32_t> TMessagePath::GetField() const {
+    return {std::next(Path_.begin(), GetTablePath().size()), Path_.end()};
+}
+
+} // namespace NOrm::NRelation
+
+////////////////////////////////////////////////////////////////////////////////
+
+size_t GetNextPathEntryHash(size_t parent, size_t entry) {
+    return parent ^ (std::hash<size_t>{}(entry) + 0x9e3779b9 + (parent << 6) + (parent >> 2));
+}
+
+size_t GetHash(const std::vector<uint32_t>& path) {
+    size_t hash_value = 0;
+    for (const auto& entry : path) {
+        hash_value = GetNextPathEntryHash(hash_value, entry);
+    }
+    return hash_value;
+}
+
+size_t GetHash(const NOrm::NRelation::TMessagePath& path) {
+    size_t hash_value = 0;
+    for (const auto& entry : path) {
+        hash_value = GetNextPathEntryHash(hash_value, entry);
+    }
+    return hash_value;
+}
+

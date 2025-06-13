@@ -6,8 +6,8 @@ namespace NOrm::NRelation {
 
 TSqlQueryOrganizer::TSqlQueryOrganizer() = default;
 
-Builder::TSelectPtr TSqlQueryOrganizer::OrganizeSelect(const TSelect& query) const {
-    Builder::TSelectPtr result = std::make_shared<Builder::TSelect>();
+Builder::TQueryPtr TSqlQueryOrganizer::OrganizeSelect(const TSelect& query) const {
+    Builder::TQueryPtr result = std::make_shared<Builder::TQuery>();
 
     
 

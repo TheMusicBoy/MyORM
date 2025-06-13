@@ -1,6 +1,7 @@
 #pragma once
 
 #include <query_builder/builder_base.h>
+#include <relation/relation_manager.h>
 #include <memory>
 #include <string>
 #include <vector>

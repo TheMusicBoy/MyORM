@@ -65,6 +65,8 @@ TFieldTypeInfoPtr GetFieldTypeInfo(const google::protobuf::FieldDescriptor* desc
 
 class TMessageBase {
   public:
+    virtual ~TMessageBase() = default;
+
     virtual const TMessagePath& GetPath() const = 0;
     std::string GetTableName() const;
 };
@@ -85,6 +87,7 @@ class TFieldBase : virtual public TMessageBase {
   public:
     // Constructor from FieldDescriptor
     TFieldBase(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path);
+    virtual ~TFieldBase() = default;
 
     int GetFieldNumber() const;
     virtual bool IsMessage() const = 0;
@@ -92,6 +95,7 @@ class TFieldBase : virtual public TMessageBase {
     google::protobuf::FieldDescriptor::Type GetValueType() const;
     EFieldType GetFieldType() const;
     const TMessagePath& GetPath() const override;
+    const google::protobuf::FieldDescriptor*  GetFieldDescriptor() const;
 
   protected:
     int FieldNumber_;
@@ -99,6 +103,7 @@ class TFieldBase : virtual public TMessageBase {
     google::protobuf::FieldDescriptor::Type ValueType_;
     TFieldTypeInfoPtr FieldTypeInfo_;
     TMessagePath Path_;
+    const google::protobuf::FieldDescriptor* FieldDescriptor_;
 };
 
 using TFieldBasePtr = std::shared_ptr<TFieldBase>;
@@ -108,10 +113,17 @@ using TFieldBasePtr = std::shared_ptr<TFieldBase>;
 class TRootBase : virtual public TMessageBase {
   public:
     TRootBase(TTableConfigPtr config);
+    virtual ~TRootBase() = default;
 
     const TMessagePath& GetPath() const override;
 
     const google::protobuf::Descriptor* GetDescriptor() const;
+
+    int Number() const;
+
+    const std::string& GetCamelCase() const;
+
+    const std::string& GetSnakeCase() const;
 
   private:
     int Number_;

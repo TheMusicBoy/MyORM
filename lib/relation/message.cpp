@@ -28,7 +28,7 @@ TFieldBasePtr RegisterMessageField(const google::protobuf::FieldDescriptor* desc
     auto& relationManager = TRelationManager::GetInstance();
     auto parentMessage = relationManager.GetMessage(path);
 
-    relationManager.RegisterMessage(field);
+    relationManager.RegisterField(field);
 
     if (parentMessage) {
         relationManager.SetParentMessage(field, parentMessage);
@@ -50,7 +50,7 @@ void RegisterRootMessage(TTableConfigPtr config) {
 
     auto rootMessage = std::make_shared<TRootMessage>(config);
 
-    TRelationManager::GetInstance().RegisterMessage(rootMessage);
+    TRelationManager::GetInstance().RegisterRoot(rootMessage);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,6 +77,11 @@ void TMessageInfo::Process() {
         }
     }
 }
+
+const google::protobuf::Descriptor* TMessageInfo::GetMessageDescriptor() const {
+    return Descriptor_;
+}
+
 // Implementation of TMessageFieldIterator
 void TMessageFieldIterator::skipNonMessageFields() {
     while (it_ != end_ && !it_->second->IsMessage()) {

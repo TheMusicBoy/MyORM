@@ -352,13 +352,13 @@ TEST_F(PostgresQueryBuilderTest, JoinOperations) {
 
     // Тестируем различные типы JOIN
     auto leftJoin = std::make_shared<TJoin>(nestedPath, joinCondition, TJoin::EJoinType::Left);
-    EXPECT_EQ(leftJoin->Build(builder), "LEFT JOIN t_2 ON (t_1.f_1 = t_2.f_3)");
+    EXPECT_EQ(leftJoin->Build(builder), "LEFT JOIN t_2 ON (t_1.f_1 = t_2_3.f_1)");
 
     auto innerJoin = std::make_shared<TJoin>(nestedPath, joinCondition, TJoin::EJoinType::Inner);
-    EXPECT_EQ(innerJoin->Build(builder), "INNER JOIN t_2 ON (t_1.f_1 = t_2.f_3)");
+    EXPECT_EQ(innerJoin->Build(builder), "INNER JOIN t_2 ON (t_1.f_1 = t_2_3.f_1)");
 
     auto exclusiveLeftJoin = std::make_shared<TJoin>(nestedPath, joinCondition, TJoin::EJoinType::ExclusiveLeft);
-    EXPECT_EQ(exclusiveLeftJoin->Build(builder), "LEFT OUTER JOIN t_2 ON (t_1.f_1 = t_2.f_3)");
+    EXPECT_EQ(exclusiveLeftJoin->Build(builder), "LEFT OUTER JOIN t_2 ON (t_1.f_1 = t_2_3.f_1)");
 }
 
 // Тест для сложного запроса SELECT с FROM и JOIN
@@ -403,7 +403,7 @@ TEST_F(PostgresQueryBuilderTest, SelectWithFromAndJoin) {
 
     // Тестируем запрос SELECT с FROM и JOIN
     std::string selectSQL = selectQuery->Build(builder);
-    EXPECT_EQ(selectSQL, "SELECT t_1.f_1, t_1.f_2, t_2.f_3 FROM t_1 INNER JOIN t_2 ON (t_1.f_1 = t_2.f_3) WHERE (t_1.f_1 > 10)");
+    EXPECT_EQ(selectSQL, "SELECT t_1.f_1, t_1.f_2, t_2_3.f_1 FROM t_1 INNER JOIN t_2 ON (t_1.f_1 = t_2_3.f_1) WHERE (t_1.f_1 > 10)");
 }
 
 // Тест для сложного запроса INSERT

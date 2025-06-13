@@ -220,7 +220,7 @@ TEST_F(RelationManagerTest, GetMessagesFromSubtree) {
     for (const auto& [path, msg] : subtreeMessages) {
         if (path == nestedPath) {
             foundNestedMessage = true;
-        } else if (path.data().size() > 1 && path.data().at(0) == 2 && TPathManager::GetInstance().EntryName(path) == "simple") {
+        } else if (path.data().size() > 1 && path.data().at(0) == 2 && path.String().back() == "simple") {
             foundSimpleInNested = true;
         }
     }
@@ -269,7 +269,7 @@ TEST_F(RelationManagerTest, GetMessageWithAncestors) {
     for (const auto& [path, obj] : ancestorObjects) {
         if (path == nestedSimplePath) {
             foundSimple = true;
-        } else if (path.data().size() == 2 && path.data().at(0) == 3 && TPathManager::GetInstance().EntryName(path) == "nested") {
+        } else if (path.data().size() == 2 && path.data().at(0) == 3 && path.String().back() == "nested") {
             foundNested = true;
         } else if (path.data().size() == 1 && path.data().at(0) == 3) {
             foundDeepNested = true;

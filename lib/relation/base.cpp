@@ -1,4 +1,5 @@
 #include <relation/base.h>
+#include <relation/relation_manager.h>
 
 namespace NOrm::NRelation {
 
@@ -11,20 +12,13 @@ std::string TMessageBase::GetTableName() const {
 ////////////////////////////////////////////////////////////////////////////////
 
 TFieldBase::TFieldBase(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path) {
-    if (!fieldDescriptor) {
-        // Provide default values for null descriptors
-        FieldNumber_ = -1;
-        Name_ = "unknown";
-        ValueType_ = google::protobuf::FieldDescriptor::TYPE_INT32; // Default type
-        FieldTypeInfo_ = ::NOrm::NRelation::GetFieldTypeInfo(nullptr);
-        Path_ = path / -1;
-    } else {
-        FieldNumber_ = fieldDescriptor->number();
-        Name_ = fieldDescriptor->name();
-        ValueType_ = fieldDescriptor->type();
-        FieldTypeInfo_ = ::NOrm::NRelation::GetFieldTypeInfo(fieldDescriptor);
-        Path_ = path / fieldDescriptor;
-    }
+    ASSERT(fieldDescriptor, "Tried to create reflection with no data at {}", path.Number())
+    FieldNumber_ = fieldDescriptor->number();
+    Name_ = fieldDescriptor->name();
+    ValueType_ = fieldDescriptor->type();
+    FieldTypeInfo_ = ::NOrm::NRelation::GetFieldTypeInfo(fieldDescriptor);
+    Path_ = path / fieldDescriptor;
+    FieldDescriptor_ = fieldDescriptor;
 }
 
 const TMessagePath& TFieldBase::GetPath() const {
@@ -43,6 +37,10 @@ google::protobuf::FieldDescriptor::Type TFieldBase::GetValueType() const {
     return ValueType_;
 }
 
+const google::protobuf::FieldDescriptor* TFieldBase::GetFieldDescriptor() const {
+    return FieldDescriptor_;
+}
+
 EFieldType TFieldBase::GetFieldType() const {
     return FieldTypeInfo_->GetFieldType();
 }
@@ -55,12 +53,22 @@ TRootBase::TRootBase(TTableConfigPtr config)
       SnakeCase_(config->SnakeCase),
       CamelCase_(config->CamelCase),
       Descriptor_(google::protobuf::DescriptorPool::generated_pool()->FindMessageTypeByName(config->Scheme)),
-      Path_(Number_) {
-    TPathManager::GetInstance().RegisterField(Path_, config->SnakeCase);
-}
+      Path_(Number_) {}
 
 const TMessagePath& TRootBase::GetPath() const {
     return Path_;
+}
+
+int TRootBase::Number() const {
+    return Number_;
+}
+
+const std::string& TRootBase::GetSnakeCase() const {
+    return SnakeCase_;
+}
+
+const std::string& TRootBase::GetCamelCase() const {
+    return CamelCase_;
 }
 
 const google::protobuf::Descriptor* TRootBase::GetDescriptor() const {

@@ -10,72 +10,6 @@ namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-inline size_t GetHash(size_t parent, size_t entry) {
-    return parent ^ (std::hash<size_t>{}(entry) + 0x9e3779b9 + (parent << 6) + (parent >> 2));
-}
-
-inline size_t GetHash(const std::vector<uint32_t>& path) {
-    size_t hash_value = 0;
-    for (const auto& entry : path) {
-        hash_value = NOrm::NRelation::GetHash(hash_value, entry);
-    }
-    return hash_value;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-class TMessagePath;
-
-class TPathManager {
-  public:
-    static TPathManager& GetInstance() {
-        static TPathManager instance;
-        return instance;
-    }
-
-    TPathManager(const TPathManager&) = delete;
-    TPathManager& operator=(const TPathManager&) = delete;
-
-    enum EFieldType {
-        Simple,
-        Repeated,
-        Map
-    };
-
-    void RegisterField(const TMessagePath& path, const std::string& name);
-
-    void RegisterRepeatedField(const TMessagePath& path, const std::string& name);
-
-    void RegisterMapField(const TMessagePath& path, const std::string& name, google::protobuf::FieldDescriptor::Type keyType);
-
-    EFieldType FieldType(const TMessagePath& path) const;
-
-    EFieldType FieldType(const std::vector<uint32_t>& path) const;
-
-    google::protobuf::FieldDescriptor::Type MapType(const TMessagePath& path) const;
-
-    google::protobuf::FieldDescriptor::Type MapType(const std::vector<uint32_t>& path) const;
-
-    std::string EntryName(const TMessagePath& path) const;
-
-    std::vector<std::string> ToString(const TMessagePath& path) const;
-
-    size_t GetEntry(const TMessagePath& path, const std::string& entry) const;
-
-    size_t GetEntry(const std::vector<uint32_t>& path, const std::string& entry) const;
-
-    bool PathRegistered(const TMessagePath& path) const;
-
-  private:
-    // Приватный конструктор
-    TPathManager() = default;
-    
-    std::unordered_map<size_t, std::string> PathToEntryName_;
-    std::unordered_map<size_t, std::unordered_map<std::string, size_t>> EntryNameToEntry_;
-    std::unordered_set<size_t> RepeatedFields_;
-    std::unordered_map<size_t, google::protobuf::FieldDescriptor::Type> MapFields_;
-};
-
 /**
  * @class TMessagePath
  * @brief Represents a path composed of multiple TMessagePathEntry elements.
@@ -136,11 +70,17 @@ class TMessagePath {
     // FieldDescriptor
     TMessagePath operator/(const google::protobuf::FieldDescriptor* desc) const;
 
+    std::vector<std::string> String() const;
+
+    const std::vector<uint32_t>& Number() const;
+
     // Check if the path is empty
     bool empty() const;
 
     // Get the parent path by removing the last entry
     TMessagePath parent() const;
+
+    TMessagePath parent_() const;
 
     // Begin iterator for path entries
     std::vector<uint32_t>::iterator begin();
@@ -172,6 +112,8 @@ class TMessagePath {
 
     const std::vector<uint32_t>& data() const;
 
+    size_t size() const;
+
     // Comparison operators based on protonum values
     bool operator==(const TMessagePath& other) const;
     bool operator!=(const TMessagePath& other) const;
@@ -193,9 +135,15 @@ class TMessagePath {
     size_t GetIndexSize() const;
     TIndex GetIndex(size_t idx) const;
 
+    TMessagePath GetTablePath() const;
+
+    std::vector<uint32_t> GetTable() const;
+    std::vector<uint32_t> GetField() const;
+
   private:
     void AppendEntry(const std::string& entry);
     void AppendEntry(uint32_t entry);
+    void PopEntry();
 
     std::vector<uint32_t> Path_;
     std::vector<TIndex> Indexes_;
@@ -208,56 +156,18 @@ class TMessagePath {
 
 } // namespace NOrm::NRelation
 
+size_t GetNextPathEntryHash(size_t parent, size_t entry);
+
+size_t GetHash(const std::vector<uint32_t>& path);
+
+size_t GetHash(const NOrm::NRelation::TMessagePath& path);
+
 // Hash function for TMessagePath
 namespace std {
 template <>
 struct hash<NOrm::NRelation::TMessagePath> {
     size_t operator()(const NOrm::NRelation::TMessagePath& path) const {
-        return NOrm::NRelation::GetHash(path.data());
+        return GetHash(path);
     }
 };
 }
-
-namespace NCommon {
-
-////////////////////////////////////////////////////////////////////////////////
-
-inline void FormatHandler(std::ostringstream& out, const ::NOrm::NRelation::TMessagePath& container, const FormatOptions& options) {
-    if (options.GetBool("table_id", false)) {
-        FormatOptions opts;
-        opts.Set("delimiter", "_");
-        opts.Set("prefix", "t_");
-        opts.Set("suffix", "");
-        detail::FormatSequenceContainer(out, container.data(), opts);
-        return;
-    }
-
-    if (options.GetBool("full_field_id", false)) {
-        FormatOptions opts;
-        opts.Set("delimiter", "_");
-        opts.Set("prefix", "t_");
-        opts.Set("suffix", "");
-        detail::FormatSequenceContainer(out, container.parent().data(), opts);
-        out << Format(".f_{}", container.number());
-        return;
-    }
-
-    if (options.GetBool("field_id", false)) {
-        out << Format("f_{}", container.number());
-        return;
-    }
-
-    FormatOptions defaultOpts;
-    defaultOpts.Set("delimiter", "/");
-    defaultOpts.Set("prefix", "");
-    defaultOpts.Set("suffix", "");
-    defaultOpts.Set("limit", -1);
-
-    auto textPath = NOrm::NRelation::TPathManager::GetInstance().ToString(container);
-
-    detail::FormatSequenceContainer(out, textPath, options.Merge(defaultOpts));
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-} // namespace NCommon

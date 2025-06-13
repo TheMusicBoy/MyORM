@@ -1,4 +1,5 @@
 #include <relation/field.h>
+#include <relation/relation_manager.h>
 
 #include <lib/relation/proto/orm_core.pb.h>
 
@@ -177,10 +178,10 @@ void TPrimitiveFieldInfo::HandleDoubleField(const google::protobuf::FieldDescrip
 void TPrimitiveFieldInfo::HandleStringField(const google::protobuf::FieldDescriptor* field) {
     HasDefault_ = field->options().HasExtension(orm::default_string);
     if (HasDefault_) {
-        DefaultValueString_ = "\\\"" + field->options().GetExtension(orm::default_string) + "\\\"";
+        DefaultValueString_ = "\"" + field->options().GetExtension(orm::default_string) + "\"";
         TypeInfo_ = TStringFieldInfo{field->options().GetExtension(orm::default_string)};
     } else {
-        DefaultValueString_ = "\\\"\\\"";
+        DefaultValueString_ = "\"\"";
         TypeInfo_ = TStringFieldInfo{""};
     }
 }

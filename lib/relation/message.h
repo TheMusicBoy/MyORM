@@ -15,6 +15,10 @@ class TMessageFieldsRange;
 
 class TMessageInfo : virtual public TMessageBase {
   public:
+    TMessageInfo(const google::protobuf::Descriptor* descriptor);
+
+    void Process();
+
     // Method to get range of all fields
     TFieldsRange Fields();
 
@@ -26,15 +30,15 @@ class TMessageInfo : virtual public TMessageBase {
 
     virtual std::string GetId() const = 0;
 
-    TMessageInfo(const google::protobuf::Descriptor* descriptor);
-
-    void Process();
+    const google::protobuf::Descriptor* GetMessageDescriptor() const;
 
   protected:
     std::string MessageName_;
+    
     std::map<int, TFieldBasePtr> Fields_;
     std::map<int, TFieldBasePtr> TablePrimaryFields_;
     std::vector<google::protobuf::FieldDescriptor::Type> IndexFields_;
+
     std::set<int> SubMessages_;
     const google::protobuf::Descriptor* Descriptor_;
 };
