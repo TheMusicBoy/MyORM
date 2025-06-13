@@ -15,6 +15,8 @@ namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
 
+class TRelationManager;
+
 class TTableInfo {
 public:
     TTableInfo(const TMessagePath& path, const google::protobuf::Descriptor* desc);
@@ -41,9 +43,9 @@ public:
 
     const TMessagePath& GetPath() const;
 
-    const std::unordered_set<size_t> GetPrimaryFields() const;
+    const std::unordered_set<size_t>& GetPrimaryFields() const;
 
-    const std::vector<google::protobuf::FieldDescriptor::Type> GetIndexes() const;
+    const std::vector<google::protobuf::FieldDescriptor::Type>& GetIndexes() const;
 
 private:
     TMessagePath Path_;
@@ -53,6 +55,8 @@ private:
 
     std::unordered_set<size_t> PrimaryFields_;
     std::vector<google::protobuf::FieldDescriptor::Type> IndexFields_;
+
+    friend TRelationManager;
 
 };
 

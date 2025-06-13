@@ -85,9 +85,9 @@ const std::unordered_set<size_t>& TTableInfo::GetRelatedTables() const { return 
 
 const TMessagePath& TTableInfo::GetPath() const { return Path_; }
 
-const std::unordered_set<size_t> TTableInfo::GetPrimaryFields() const { return PrimaryFields_; }
+const std::unordered_set<size_t>& TTableInfo::GetPrimaryFields() const { return PrimaryFields_; }
 
-const std::vector<google::protobuf::FieldDescriptor::Type> TTableInfo::GetIndexes() const { return IndexFields_; }
+const std::vector<google::protobuf::FieldDescriptor::Type>& TTableInfo::GetIndexes() const { return IndexFields_; }
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -300,11 +300,11 @@ google::protobuf::FieldDescriptor::Type TRelationManager::GetIndexType(const TMe
     }
 
     const auto& table = TableByPath_.at(pathHash);
-    if (table.GetIndexes().empty()) {
+    if (table.IndexFields_.empty()) {
         return static_cast<google::protobuf::FieldDescriptor::Type>(0);
     }
 
-    return table.GetIndexes().back();
+    return table.IndexFields_.back();
 }
 
 void TRelationManager::Clear() {

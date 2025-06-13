@@ -30,6 +30,7 @@ DEPENDS
 add_test_ex(relation_test
 SOURCES 
     ${TESTROOT}/relation/relation_manager_test.cpp
+    ${TESTROOT}/relation/path_test.cpp
 DEPENDS
     relation
     test_objects

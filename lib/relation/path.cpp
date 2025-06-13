@@ -20,10 +20,10 @@ TMessagePath::TMessagePath(const std::vector<uint32_t>& entries)
     : Path_(entries), WaitIndex_(false) {}
 
 TMessagePath::TMessagePath(const TMessagePath& other)
-    : Path_(other.Path_), WaitIndex_(false) {}
+    : Path_(other.Path_), Indexes_(other.Indexes_), IndexType_(other.IndexType_), WaitIndex_(other.WaitIndex_) {}
 
 TMessagePath::TMessagePath(TMessagePath&& other) noexcept
-    : Path_(std::move(other.Path_)), WaitIndex_(false) {}
+    : Path_(std::move(other.Path_)), Indexes_(std::move(other.Indexes_)), IndexType_(other.IndexType_), WaitIndex_(other.WaitIndex_) {}
 
 TMessagePath& TMessagePath::operator=(const TMessagePath& other) {
     if (this != &other) {
@@ -38,6 +38,9 @@ TMessagePath& TMessagePath::operator=(const TMessagePath& other) {
 TMessagePath& TMessagePath::operator=(TMessagePath&& other) noexcept {
     if (this != &other) {
         Path_ = std::move(other.Path_);
+        Indexes_ = std::move(other.Indexes_);
+        WaitIndex_ = other.WaitIndex_;
+        IndexType_ = other.IndexType_;
     }
     return *this;
 }
@@ -89,7 +92,9 @@ void TMessagePath::AppendEntry(const std::string& entry) {
         return;
     }
     auto& relationManager = TRelationManager::GetInstance();
-    Path_.push_back(relationManager.EntryNameToEntry_.at(GetHash(Path_)).at(entry));
+    auto pathHash = GetHash(Path_);
+    ASSERT(relationManager.EntryNameToEntry_[pathHash].contains(entry), "Entry \"{}/{}\" does not exists", *this, entry);
+    Path_.push_back(relationManager.EntryNameToEntry_[pathHash].at(entry));
     if (auto indexType = relationManager.GetIndexType(Path_)) {
         switch (indexType) {
             case google::protobuf::FieldDescriptor::TYPE_INT32:
