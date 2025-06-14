@@ -3,12 +3,9 @@
 
 namespace NOrm::NRelation::Builder {
 
+// Реализация функции BuildClause - единая точка входа для построения SQL
 ////////////////////////////////////////////////////////////////////////////////
 // TString implementation
-
-std::string TString::Build(TBuilderBasePtr builder) const {
-    return builder->BuildString(Value_);
-}
 
 EClauseType TString::Type() const {
     return EClauseType::String;
@@ -17,20 +14,12 @@ EClauseType TString::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TInt implementation
 
-std::string TInt::Build(TBuilderBasePtr builder) const {
-    return builder->BuildInt(Value_);
-}
-
 EClauseType TInt::Type() const {
     return EClauseType::Int;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TFloat implementation
-
-std::string TFloat::Build(TBuilderBasePtr builder) const {
-    return builder->BuildFloat(Value_);
-}
 
 EClauseType TFloat::Type() const {
     return EClauseType::Float;
@@ -39,20 +28,12 @@ EClauseType TFloat::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TBool implementation
 
-std::string TBool::Build(TBuilderBasePtr builder) const {
-    return builder->BuildBool(Value_);
-}
-
 EClauseType TBool::Type() const {
     return EClauseType::Bool;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TExpression implementation
-
-std::string TExpression::Build(TBuilderBasePtr builder) const {
-    return builder->BuildExpression(ExpressionType_, Operands_);
-}
 
 EClauseType TExpression::Type() const {
     return EClauseType::Expression;
@@ -61,20 +42,12 @@ EClauseType TExpression::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TAll implementation
 
-std::string TAll::Build(TBuilderBasePtr builder) const {
-    return builder->BuildAll();
-}
-
 EClauseType TAll::Type() const {
     return EClauseType::All;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TColumn implementation
-
-std::string TColumn::Build(TBuilderBasePtr builder) const {
-    return builder->BuildColumn(FieldPath_, ColumnType_);
-}
 
 EClauseType TColumn::Type() const {
     return EClauseType::Column;
@@ -83,10 +56,6 @@ EClauseType TColumn::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TDefault implementation
 
-std::string TTable::Build(TBuilderBasePtr builder) const {
-    return builder->BuildTable(Path_);
-}
-
 EClauseType TTable::Type() const {
     return EClauseType::Table;
 }
@@ -94,19 +63,11 @@ EClauseType TTable::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TDefault implementation
 
-std::string TDefault::Build(TBuilderBasePtr builder) const {
-    return builder->BuildDefault();
-}
-
 EClauseType TDefault::Type() const {
     return EClauseType::Default;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-
-std::string TJoin::Build(TBuilderBasePtr builder) const {
-    return builder->BuildJoin(Table_, Condition_, JoinType_);
-}
 
 EClauseType TJoin::Type() const {
     return EClauseType::Join;
@@ -115,20 +76,12 @@ EClauseType TJoin::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TSelect implementation
 
-std::string TSelect::Build(TBuilderBasePtr builder) const {
-    return builder->BuildSelect(Selectors_, From_, Join_, Where_, GroupBy_, Having_, OrderBy_, Limit_);
-}
-
 EClauseType TSelect::Type() const {
     return EClauseType::Select;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TInsert implementation
-
-std::string TInsert::Build(TBuilderBasePtr builder) const {
-    return builder->BuildInsert(Table_, Selectors_, IsValues_, Values_, IsDoUpdate_, DoUpdate_);
-}
 
 EClauseType TInsert::Type() const {
     return EClauseType::Insert;
@@ -137,20 +90,12 @@ EClauseType TInsert::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TUpdate implementation
 
-std::string TUpdate::Build(TBuilderBasePtr builder) const {
-    return builder->BuildUpdate(Table_, Updates_, Where_);
-}
-
 EClauseType TUpdate::Type() const {
     return EClauseType::Update;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TDelete implementation
-
-std::string TDelete::Build(TBuilderBasePtr builder) const {
-    return builder->BuildDelete(Table_, Where_);
-}
 
 EClauseType TDelete::Type() const {
     return EClauseType::Delete;
@@ -159,20 +104,12 @@ EClauseType TDelete::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TTruncate implementation
 
-std::string TTruncate::Build(TBuilderBasePtr builder) const {
-    return builder->BuildTruncate(Path_);
-}
-
 EClauseType TTruncate::Type() const {
     return EClauseType::Truncate;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TStartTransaction implementation
-
-std::string TStartTransaction::Build(TBuilderBasePtr builder) const {
-    return builder->BuildStartTransaction(read_only);
-}
 
 EClauseType TStartTransaction::Type() const {
     return EClauseType::StartTransaction;
@@ -181,20 +118,12 @@ EClauseType TStartTransaction::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TCommitTransaction implementation
 
-std::string TCommitTransaction::Build(TBuilderBasePtr builder) const {
-    return builder->BuildCommitTransaction();
-}
-
 EClauseType TCommitTransaction::Type() const {
     return EClauseType::CommitTransaction;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TRollbackTransaction implementation
-
-std::string TRollbackTransaction::Build(TBuilderBasePtr builder) const {
-    return builder->BuildRollbackTransaction();
-}
 
 EClauseType TRollbackTransaction::Type() const {
     return EClauseType::RollbackTransaction;
@@ -203,11 +132,6 @@ EClauseType TRollbackTransaction::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TCreateTable implementation
 
-std::string TCreateTable::Build(TBuilderBasePtr builder) const {
-    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(Message_->GetPath());
-    return builder->BuildCreateTable(tableInfo);
-}
-
 EClauseType TCreateTable::Type() const {
     return EClauseType::CreateTable;
 }
@@ -215,21 +139,12 @@ EClauseType TCreateTable::Type() const {
 ////////////////////////////////////////////////////////////////////////////////
 // TDropTable implementation
 
-std::string TDropTable::Build(TBuilderBasePtr builder) const {
-    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(Message_->GetPath());
-    return builder->BuildDropTable(tableInfo);
-}
-
 EClauseType TDropTable::Type() const {
     return EClauseType::DropTable;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // TAddColumn implementation
-
-std::string TAddColumn::Build(TBuilderBasePtr builder) const {
-    return builder->BuildAddColumn(Field_);
-}
 
 EClauseType TAddColumn::Type() const {
     return EClauseType::CreateColumn;
@@ -242,10 +157,6 @@ void TAddColumn::SetColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) {
 ////////////////////////////////////////////////////////////////////////////////
 // TDropColumn implementation
 
-std::string TDropColumn::Build(TBuilderBasePtr builder) const {
-    return builder->BuildDropColumn(Field_);
-}
-
 EClauseType TDropColumn::Type() const {
     return EClauseType::DropColumn;
 }
@@ -257,50 +168,12 @@ void TDropColumn::SetColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) {
 ////////////////////////////////////////////////////////////////////////////////
 // TAlterColumn implementation
 
-std::string TAlterColumn::Build(TBuilderBasePtr builder) const {
-    return builder->BuildAlterColumn(New_, Old_);
-}
-
 EClauseType TAlterColumn::Type() const {
     return EClauseType::AlterColumn;
 }
 
-void TAlterColumn::SetNew(NOrm::NRelation::TPrimitiveFieldInfoPtr newField) {
-    New_ = newField;
-}
-
-void TAlterColumn::SetOld(NOrm::NRelation::TPrimitiveFieldInfoPtr oldField) {
-    Old_ = oldField;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // TAlterTable implementation
-
-std::string TAlterTable::Build(TBuilderBasePtr builder) const {
-    if (!Operations_.empty()) {
-        for (const auto& op : Operations_) {
-            if (auto addCol = std::dynamic_pointer_cast<TAddColumn>(op)) {
-                if (auto field = addCol->GetField()) {
-                    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(field->GetPath());
-                    return builder->BuildAlterTable(tableInfo, Operations_);
-                }
-            } else if (auto dropCol = std::dynamic_pointer_cast<TDropColumn>(op)) {
-                if (auto field = dropCol->GetField()) {
-                    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(field->GetPath());
-                    return builder->BuildAlterTable(tableInfo, Operations_);
-                }
-            } else if (auto alterCol = std::dynamic_pointer_cast<TAlterColumn>(op)) {
-                if (auto field = alterCol->GetNew()) {
-                    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(field->GetPath());
-                    return builder->BuildAlterTable(tableInfo, Operations_);
-                }
-            }
-        }
-    }
-    
-    // Если не удалось определить таблицу, бросаем исключение
-    THROW("Cannot determine table for ALTER TABLE operation");
-}
 
 EClauseType TAlterTable::Type() const {
     return EClauseType::AlterTable;
@@ -311,16 +184,92 @@ void TAlterTable::AddOperation(TClausePtr operation) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TQuery implementation
 
-std::string TQuery::Build(TBuilderBasePtr builder) const {
-    std::vector<std::string> results;
-    
-    for (auto clause : Clauses_) {
-        results.push_back(clause->Build(builder));
+std::string TBuilderBase::BuildClause(TClausePtr clause) {
+    if (!clause) {
+        return "";
+    }
+
+    switch (clause->Type()) {
+        case EClauseType::String:
+            return this->BuildString(std::static_pointer_cast<TString>(clause));
+            
+        case EClauseType::Int:
+            return this->BuildInt(std::static_pointer_cast<TInt>(clause));
+            
+        case EClauseType::Float:
+            return this->BuildFloat(std::static_pointer_cast<TFloat>(clause));
+            
+        case EClauseType::Bool:
+            return this->BuildBool(std::static_pointer_cast<TBool>(clause));
+            
+        case EClauseType::Expression:
+            return this->BuildExpression(std::static_pointer_cast<TExpression>(clause));
+            
+        case EClauseType::All:
+            return this->BuildAll(std::static_pointer_cast<TAll>(clause));
+            
+        case EClauseType::Column:
+            return this->BuildColumn(std::static_pointer_cast<TColumn>(clause));
+            
+        case EClauseType::Table:
+            return this->BuildTable(std::static_pointer_cast<TTable>(clause));
+            
+        case EClauseType::Default:
+            return this->BuildDefault(std::static_pointer_cast<TDefault>(clause));
+            
+        case EClauseType::Join:
+            return this->BuildJoin(std::static_pointer_cast<TJoin>(clause));
+            
+        case EClauseType::Select:
+            return this->BuildSelect(std::static_pointer_cast<TSelect>(clause));
+            
+        case EClauseType::Insert:
+            return this->BuildInsert(std::static_pointer_cast<TInsert>(clause));
+            
+        case EClauseType::Update:
+            return this->BuildUpdate(std::static_pointer_cast<TUpdate>(clause));
+            
+        case EClauseType::Delete:
+            return this->BuildDelete(std::static_pointer_cast<TDelete>(clause));
+            
+        case EClauseType::Truncate:
+            return this->BuildTruncate(std::static_pointer_cast<TTruncate>(clause));
+            
+        case EClauseType::StartTransaction:
+            return this->BuildStartTransaction(std::static_pointer_cast<TStartTransaction>(clause));
+            
+        case EClauseType::CommitTransaction:
+            return this->BuildCommitTransaction(std::static_pointer_cast<TCommitTransaction>(clause));
+            
+        case EClauseType::RollbackTransaction:
+            return this->BuildRollbackTransaction(std::static_pointer_cast<TRollbackTransaction>(clause));
+            
+        case EClauseType::CreateTable:
+            return this->BuildCreateTable(std::static_pointer_cast<TCreateTable>(clause));
+            
+        case EClauseType::DropTable:
+            return this->BuildDropTable(std::static_pointer_cast<TDropTable>(clause));
+            
+        case EClauseType::AlterTable:
+            return this->BuildAlterTable(std::static_pointer_cast<TAlterTable>(clause));
+            
+        case EClauseType::CreateColumn:
+            return this->BuildAddColumn(std::static_pointer_cast<TAddColumn>(clause));
+            
+        case EClauseType::DropColumn:
+            return this->BuildDropColumn(std::static_pointer_cast<TDropColumn>(clause));
+            
+        case EClauseType::AlterColumn:
+            return this->BuildAlterColumn(std::static_pointer_cast<TAlterColumn>(clause));
+            
+        default:
+            THROW("Uknown type of clause: {}", static_cast<int>(clause->Type()));
     }
     
-    return builder->JoinQueries(results);
+    return "";
 }
 
+
 } // namespace NOrm::NRelation::Builder
+

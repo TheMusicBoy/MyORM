@@ -27,10 +27,6 @@ enum class EClauseType {
     Default,
     Join,
     Select,
-    DefaultValueList,
-    ValueRows,
-    DoNothing,
-    DoUpdate,
     Insert,
     Update,
     Delete,
@@ -53,8 +49,6 @@ enum class EClauseType {
 class TClause {
   public:
     virtual ~TClause() = default;
-
-    virtual std::string Build(TBuilderBasePtr builder) const = 0;
     virtual EClauseType Type() const = 0;
 
   private:
@@ -71,7 +65,6 @@ class TString : public TClause {
     TString(const std::string& value = "")
         : Value_(value) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     const std::string& GetValue() const {
@@ -93,7 +86,6 @@ class TInt : public TClause {
     TInt(int32_t value = 0)
         : Value_(value) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     int32_t GetValue() const {
@@ -115,7 +107,6 @@ class TFloat : public TClause {
     TFloat(double value = 0.0)
         : Value_(value) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     double GetValue() const {
@@ -137,7 +128,6 @@ class TBool : public TClause {
     TBool(bool value = false)
         : Value_(value) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     bool GetValue() const {
@@ -160,7 +150,6 @@ class TExpression : public TClause {
         : ExpressionType_(expressionType),
           Operands_(operands) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     const std::vector<TClausePtr>& GetOperands() const {
@@ -188,7 +177,6 @@ class TAll : public TClause {
   public:
     TAll() = default;
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 };
 
@@ -198,7 +186,6 @@ class TDefault : public TClause {
   public:
     TDefault() = default;
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 };
 
@@ -215,7 +202,6 @@ class TColumn : public TClause {
     TColumn(const std::vector<uint32_t>& tablePath, const std::vector<uint32_t> fieldPath)
         : TablePath_(tablePath), FieldPath_(fieldPath) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     void SetPath(const std::vector<uint32_t>& table, const std::vector<uint32_t>& path) {
@@ -231,13 +217,13 @@ class TColumn : public TClause {
     EKeyType GetKeyType() const {
         return KeyType_;
     }
-    void GetKeyType(EKeyType type) {
+    void SetKeyType(EKeyType type) {
         KeyType_ = type;
     }
     NQuery::EColumnType GetColumnType() const {
         return ColumnType_;
     }
-    void GetColumnType(NQuery::EColumnType type) {
+    void SetColumnType(NQuery::EColumnType type) {
         ColumnType_ = type;
     }
 
@@ -256,13 +242,13 @@ class TColumnDefinition : public TClause {
     TColumnDefinition(const std::vector<uint32_t>& tablePath, const std::vector<uint32_t> fieldPath)
         : TablePath_(tablePath), FieldPath_(fieldPath) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     void SetPath(const std::vector<uint32_t>& table, const std::vector<uint32_t>& path) {
         TablePath_ = table;
         FieldPath_ = path;
     }
+
     const std::vector<uint32_t>& GetFieldPath() const {
         return FieldPath_;
     }
@@ -355,7 +341,6 @@ class TTable : public TClause {
   public:
     TTable(const TMessagePath& path = TMessagePath()) : Path_(path) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     const TMessagePath& GetPath() const {
@@ -381,7 +366,6 @@ class TJoin : public TClause {
           Condition_(condition),
           JoinType_(type) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     void SetTable(const TMessagePath& table) { Table_ = table; }
@@ -396,6 +380,8 @@ class TJoin : public TClause {
     TClausePtr Condition_;
     EJoinType JoinType_;
 };
+
+using TJoinPtr = std::shared_ptr<TJoin>;
 
 class TSelect : public TClause {
   public:
@@ -417,7 +403,6 @@ class TSelect : public TClause {
           OrderBy_(orderBy),
           Limit_(limit) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     const std::vector<TClausePtr>& GetSelectors() const {
@@ -500,7 +485,10 @@ class TInsert : public TClause {
           IsDoUpdate_(isDoUpdate),
           DoUpdate_(doUpdate) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
+    const TMessagePath& GetTable() const {
+        return Table_;
+    }
+
     EClauseType Type() const override;
 
     const std::vector<TClausePtr>& GetSelectors() const {
@@ -555,7 +543,10 @@ class TUpdate : public TClause {
           Updates_(updates),
           Where_(where) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
+    const TMessagePath& GetTable() const {
+        return Table_;
+    }
+
     EClauseType Type() const override;
 
     const std::vector<std::pair<TClausePtr, TClausePtr>>& GetUpdates() const {
@@ -585,7 +576,10 @@ class TDelete : public TClause {
     TDelete(const TMessagePath& table, TClausePtr where = nullptr)
         : Table_(table), Where_(where) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
+    const TMessagePath& GetTable() const {
+        return Table_;
+    }
+
     EClauseType Type() const override;
 
     TClausePtr GetWhere() const {
@@ -609,7 +603,6 @@ class TTruncate : public TClause {
     TTruncate(const TMessagePath& path = TMessagePath())
         : Path_(path) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     const TMessagePath& GetPath() const {
@@ -631,7 +624,6 @@ class TStartTransaction : public TClause {
     TStartTransaction(bool readOnly = false)
         : read_only(readOnly) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     bool GetReadOnly() const {
@@ -651,7 +643,6 @@ using TStartTransactionPtr = std::shared_ptr<TStartTransaction>;
 class TCommitTransaction : public TClause {
   public:
     TCommitTransaction() = default;
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 };
 
@@ -660,7 +651,6 @@ using TCommitTransactionPtr = std::shared_ptr<TCommitTransaction>;
 class TRollbackTransaction : public TClause {
   public:
     TRollbackTransaction() = default;
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 };
 
@@ -671,7 +661,6 @@ class TCreateTable : public TClause {
     TCreateTable(NOrm::NRelation::TMessageInfoPtr message = nullptr)
         : Message_(message) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     NOrm::NRelation::TMessageInfoPtr GetMessage() const {
@@ -693,7 +682,6 @@ class TDropTable : public TClause {
     TDropTable(NOrm::NRelation::TMessageInfoPtr message = nullptr)
         : Message_(message) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     NOrm::NRelation::TMessageInfoPtr GetMessage() const {
@@ -715,7 +703,6 @@ class TAddColumn : public TClause {
     TAddColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field = nullptr)
         : Field_(field) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     void SetColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field);
@@ -736,7 +723,6 @@ class TDropColumn : public TClause {
     TDropColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field = nullptr)
         : Field_(field) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     void SetColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field);
@@ -754,26 +740,48 @@ using TDropColumnPtr = std::shared_ptr<TDropColumn>;
 
 class TAlterColumn : public TClause {
   public:
-    TAlterColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr newField = nullptr, NOrm::NRelation::TPrimitiveFieldInfoPtr oldField = nullptr)
-        : New_(newField),
-          Old_(oldField) {}
+    TAlterColumn(TColumnPtr column) : Column_(column) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
-    void SetNew(NOrm::NRelation::TPrimitiveFieldInfoPtr newField);
-    void SetOld(NOrm::NRelation::TPrimitiveFieldInfoPtr oldField);
-
-    NOrm::NRelation::TPrimitiveFieldInfoPtr GetNew() const {
-        return New_;
+    TColumnPtr GetColumn() {
+        return Column_;
     }
-    NOrm::NRelation::TPrimitiveFieldInfoPtr GetOld() const {
-        return Old_;
+
+    enum EAlterType {
+        kNone = 0,
+        kSetDefault = 1,
+        kDropDefault = 2,
+        kSetRequired = 3,
+        kDropRequired = 4,
+        kSetType = 5
+    };
+
+    void DropRequired() { AlterType_ = EAlterType::kDropRequired; }
+    void SetRequired() { AlterType_ = EAlterType::kSetRequired; }
+    void DropDefault() { AlterType_ = EAlterType::kDropDefault; }
+    void SetDefault(const TValueInfo* info) {
+        AlterType_ = EAlterType::kDropDefault;
+        TypeInfo_ = info;
+    }
+    void SetType(const TValueInfo* info) {
+        AlterType_ = EAlterType::kSetType;
+        TypeInfo_ = info;
+    }
+
+    TAlterColumn::EAlterType GetAlterType() const {
+        return AlterType_;
+    }
+
+    const TValueInfo* GetValueType() const {
+        return TypeInfo_;
     }
 
   private:
-    NOrm::NRelation::TPrimitiveFieldInfoPtr New_;
-    NOrm::NRelation::TPrimitiveFieldInfoPtr Old_;
+    TColumnPtr Column_;
+    EAlterType AlterType_;
+    const TValueInfo* TypeInfo_;
+
     friend TBuilderBase;
 };
 
@@ -784,7 +792,6 @@ class TAlterTable : public TClause {
     TAlterTable(const std::vector<TClausePtr>& operations = {})
         : Operations_(operations) {}
 
-    std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
     void AddOperation(TClausePtr operation);
@@ -807,8 +814,6 @@ class TQuery {
   public:
     TQuery(const std::vector<TClausePtr>& clauses = {})
         : Clauses_(clauses) {}
-
-    std::string Build(TBuilderBasePtr builder) const;
 
     const std::vector<TClausePtr>& GetClauses() const {
         return Clauses_;
@@ -833,64 +838,47 @@ class TBuilderBase {
   public:
     virtual ~TBuilderBase() = default;
 
-    virtual std::string BuildString(const std::string& value) = 0;
-    virtual std::string BuildInt(int32_t value) = 0;
-    virtual std::string BuildFloat(double value) = 0;
-    virtual std::string BuildBool(bool value) = 0;
+    std::string BuildClause(TClausePtr clause);
 
-    virtual std::string BuildExpression(NQuery::EExpressionType type, const std::vector<TClausePtr>& operands) = 0;
+  protected:
+    virtual std::string BuildString(TStringPtr value) = 0;
+    virtual std::string BuildInt(TIntPtr value) = 0;
+    virtual std::string BuildFloat(TFloatPtr value) = 0;
+    virtual std::string BuildBool(TBoolPtr value) = 0;
 
-    virtual std::string BuildAll() = 0;
+    virtual std::string BuildExpression(TExpressionPtr expression) = 0;
 
-    virtual std::string BuildColumn(const TMessagePath& path, NQuery::EColumnType type) = 0;
-    virtual std::string BuildTable(const TMessagePath& path) = 0;
+    virtual std::string BuildAll(TAllPtr all) = 0;
 
-    virtual std::string BuildDefault() = 0;
+    virtual std::string BuildColumn(TColumnPtr column) = 0;
+    virtual std::string BuildTable(TTablePtr table) = 0;
 
-    virtual std::string BuildSelect(
-        const std::vector<TClausePtr>& selectors,
-        const std::vector<TClausePtr>& from,
-        const std::vector<TClausePtr>& join,
-        TClausePtr where,
-        TClausePtr groupBy,
-        TClausePtr having,
-        TClausePtr orderBy,
-        TClausePtr limit) = 0;
+    virtual std::string BuildDefault(TDefaultPtr defaultVal) = 0;
 
-    virtual std::string BuildJoin(TMessagePath table, TClausePtr condition, TJoin::EJoinType type) = 0;
+    virtual std::string BuildSelect(TSelectPtr select) = 0;
 
-    virtual std::string BuildDefaultValueList() = 0;
-    virtual std::string BuildRowValues(const std::vector<std::vector<TClausePtr>>& rows) = 0;
+    virtual std::string BuildJoin(TJoinPtr join) = 0;
 
-    virtual std::string BuildDoNothing() = 0;
-    virtual std::string BuildDoUpdate(const std::vector<std::pair<TClausePtr, TClausePtr>>& updates) = 0;
+    virtual std::string BuildInsert(TInsertPtr insert) = 0;
 
-    virtual std::string BuildInsert(
-        const TMessagePath& table,
-        const std::vector<TClausePtr>& selectors,
-        bool isValues,
-        const std::vector<std::vector<TClausePtr>>& values,
-        bool isDoUpdate,
-        const std::vector<std::pair<TClausePtr, TClausePtr>>& doUpdate) = 0;
+    virtual std::string BuildUpdate(TUpdatePtr update) = 0;
 
-    virtual std::string BuildUpdate(const TMessagePath& table, const std::vector<std::pair<TClausePtr, TClausePtr>>& updates, TClausePtr where) = 0;
+    virtual std::string BuildDelete(TDeletePtr deleteClause) = 0;
+    virtual std::string BuildTruncate(TTruncatePtr truncate) = 0;
 
-    virtual std::string BuildDelete(const TMessagePath& table, TClausePtr where) = 0;
-    virtual std::string BuildTruncate(TMessagePath tableNum) = 0;
-
-    virtual std::string BuildStartTransaction(bool readOnly) = 0;
-    virtual std::string BuildCommitTransaction() = 0;
-    virtual std::string BuildRollbackTransaction() = 0;
+    virtual std::string BuildStartTransaction(TStartTransactionPtr startTransaction) = 0;
+    virtual std::string BuildCommitTransaction(TCommitTransactionPtr commitTransaction) = 0;
+    virtual std::string BuildRollbackTransaction(TRollbackTransactionPtr rollbackTransaction) = 0;
 
     virtual std::string BuildColumnDefinition(TColumnDefinitionPtr columnDefinition) = 0;
 
-    virtual std::string BuildCreateTable(const NOrm::NRelation::TTableInfo& table) = 0;
-    virtual std::string BuildDropTable(const NOrm::NRelation::TTableInfo& table) = 0;
-    virtual std::string BuildAlterTable(const NOrm::NRelation::TTableInfo& table, const std::vector<TClausePtr>& operations) = 0;
+    virtual std::string BuildCreateTable(TCreateTablePtr createTable) = 0;
+    virtual std::string BuildDropTable(TDropTablePtr dropTable) = 0;
+    virtual std::string BuildAlterTable(TAlterTablePtr alterTable) = 0;
 
-    virtual std::string BuildAddColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) = 0;
-    virtual std::string BuildDropColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) = 0;
-    virtual std::string BuildAlterColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr newField, NOrm::NRelation::TPrimitiveFieldInfoPtr oldField) = 0;
+    virtual std::string BuildAddColumn(TAddColumnPtr addColumn) = 0;
+    virtual std::string BuildDropColumn(TDropColumnPtr dropColumn) = 0;
+    virtual std::string BuildAlterColumn(TAlterColumnPtr alterColumn) = 0;
 
     virtual std::string JoinQueries(const std::vector<std::string>& queries) = 0;
 };

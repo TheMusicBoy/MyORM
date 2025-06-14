@@ -86,75 +86,50 @@ public:
     TPostgresBuilder();
     ~TPostgresBuilder() override;
 
-    // Базовые типы данных
-    std::string BuildString(const std::string& value) override;
-    std::string BuildInt(int32_t value) override;
-    std::string BuildFloat(double value) override;
-    std::string BuildBool(bool value) override;
+protected:
+    // Базовые типы данных (protected)
+    std::string BuildString(TStringPtr value) override;
+    std::string BuildInt(TIntPtr value) override;
+    std::string BuildFloat(TFloatPtr value) override;
+    std::string BuildBool(TBoolPtr value) override;
 
     // Выражения и колонки
-    std::string BuildExpression(
-        NQuery::EExpressionType type,
-        const std::vector<TClausePtr>& operands) override;
-    std::string BuildAll() override;
-    std::string BuildColumn(
-        const TMessagePath& path,
-        NQuery::EColumnType type) override;
-    std::string BuildTable(const TMessagePath& path) override;
-    std::string BuildDefault() override;
+    std::string BuildExpression(TExpressionPtr expression) override;
+    std::string BuildAll(TAllPtr all) override;
+    std::string BuildColumn(TColumnPtr column) override;
+    std::string BuildTable(TTablePtr table) override;
+    std::string BuildDefault(TDefaultPtr defaultVal) override;
     
-    std::string BuildJoin(TMessagePath table, TClausePtr condition, TJoin::EJoinType type) override;
+    std::string BuildJoin(TJoinPtr join) override;
 
     // Запросы SELECT
-    std::string BuildSelect(
-        const std::vector<TClausePtr>& selectors,
-        const std::vector<TClausePtr>& from,
-        const std::vector<TClausePtr>& join,
-        TClausePtr where,
-        TClausePtr groupBy,
-        TClausePtr having,
-        TClausePtr orderBy,
-        TClausePtr limit) override;
+    std::string BuildSelect(TSelectPtr select) override;
     
     // Запросы INSERT
-    std::string BuildDefaultValueList() override;
-    std::string BuildRowValues(const std::vector<std::vector<TClausePtr>>& rows) override;
-    std::string BuildDoNothing() override;
-    std::string BuildDoUpdate(const std::vector<std::pair<TClausePtr, TClausePtr>>& updates) override;
-    std::string BuildInsert(
-        const TMessagePath& table,
-        const std::vector<TClausePtr>& selectors,
-        bool isValues,
-        const std::vector<std::vector<TClausePtr>>& values,
-        bool isDoUpdate,
-        const std::vector<std::pair<TClausePtr, TClausePtr>>& doUpdate) override;
+    std::string BuildInsert(TInsertPtr insert) override;
     
     // Запросы UPDATE
-    std::string BuildUpdate(
-        const TMessagePath& table,
-        const std::vector<std::pair<TClausePtr, TClausePtr>>& updates, 
-        TClausePtr where) override;
+    std::string BuildUpdate(TUpdatePtr update) override;
     
     // Запросы DELETE
-    std::string BuildDelete(const TMessagePath& table, TClausePtr where) override;
-    std::string BuildTruncate(TMessagePath path) override;
+    std::string BuildDelete(TDeletePtr deleteClause) override;
+    std::string BuildTruncate(TTruncatePtr truncate) override;
 
     // Транзакции
-    std::string BuildStartTransaction(bool readOnly) override;
-    std::string BuildCommitTransaction() override;
-    std::string BuildRollbackTransaction() override;
+    std::string BuildStartTransaction(TStartTransactionPtr startTransaction) override;
+    std::string BuildCommitTransaction(TCommitTransactionPtr commitTransaction) override;
+    std::string BuildRollbackTransaction(TRollbackTransactionPtr rollbackTransaction) override;
 
     // Операции с таблицами
-    std::string BuildCreateTable(const NOrm::NRelation::TTableInfo& table) override;
-    std::string BuildDropTable(const NOrm::NRelation::TTableInfo& table) override;
+    std::string BuildColumnDefinition(TColumnDefinitionPtr columnDefinition) override;
+    std::string BuildCreateTable(TCreateTablePtr createTable) override;
+    std::string BuildDropTable(TDropTablePtr dropTable) override;
+    std::string BuildAlterTable(TAlterTablePtr alterTable) override;
     
     // Операции с колонками
-    std::string BuildAddColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) override;
-    std::string BuildDropColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) override;
-    std::string BuildAlterColumn(
-        NOrm::NRelation::TPrimitiveFieldInfoPtr newField,
-        NOrm::NRelation::TPrimitiveFieldInfoPtr oldField) override;
-    std::string BuildAlterTable(const NOrm::NRelation::TTableInfo& table, const std::vector<TClausePtr>& operations) override;
+    std::string BuildAddColumn(TAddColumnPtr addColumn) override;
+    std::string BuildDropColumn(TDropColumnPtr dropColumn) override;
+    std::string BuildAlterColumn(TAlterColumnPtr alterColumn) override;
     
     // Объединение запросов
     std::string JoinQueries(const std::vector<std::string>& queries) override;
@@ -164,9 +139,11 @@ private:
     std::string EscapeIdentifier(const std::string& identifier);
     std::string EscapeStringLiteral(const std::string& str);
     std::string GetPostgresType(const TValueInfo& typeInfo);
+    std::string GetPostgresDefault(const TValueInfo& typeInfo);
     std::string ColumnDefinition(NOrm::NRelation::TPrimitiveFieldInfoPtr field);
-
-    std::vector<std::string> BuildVector(const std::vector<TClausePtr>& cluases);
+    
+    // Вспомогательные методы
+    std::vector<std::string> BuildVector(const std::vector<TClausePtr>& clauses);
 
     StackWrapper<NOrm::NRelation::Builder::EClauseType> Stack_;
 };

@@ -138,7 +138,7 @@ public:
     // Clear all indexes and data
     void Clear();
 
-    TTableInfo& GetParentTable(const TMessagePath& path);
+    TTableInfoPtr GetParentTable(const TMessagePath& path);
 
 private:
     // Private constructor (singleton)

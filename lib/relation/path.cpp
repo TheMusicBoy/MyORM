@@ -359,7 +359,7 @@ TMessagePath::TIndex TMessagePath::GetIndex(size_t idx) const {
 
 TMessagePath TMessagePath::GetTablePath() const {
     const auto& table = TRelationManager::GetInstance().GetParentTable(Path_);
-    return table.GetPath();
+    return table->GetPath();
 }
 
 std::vector<uint32_t> TMessagePath::GetTable() const {
