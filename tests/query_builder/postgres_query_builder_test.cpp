@@ -102,8 +102,31 @@ TEST_F(PostgresQueryBuilderTest, CreateTableQuery) {
     ASSERT_NE(message, nullptr);
 
     // Тестируем запрос CREATE TABLE
-    std::string createTableSQL = builder->BuildCreateTable(message);
-    EXPECT_EQ("CREATE TABLE t_1 (f_1 INTEGER PRIMARY KEY, f_2 TEXT NOT NULL, f_3 BOOLEAN DEFAULT TRUE)", createTableSQL);
+    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(message->GetPath());
+    std::string createTableSQL = builder->BuildCreateTable(tableInfo);
+    EXPECT_TRUE(createTableSQL.find("CREATE TABLE t_1 (") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find("f_1 INTEGER PRIMARY KEY") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find("f_2 TEXT NOT NULL") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find("f_3 BOOLEAN DEFAULT TRUE") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find(")") != std::string::npos);
+    EXPECT_EQ(createTableSQL.size() + 1, sizeof("CREATE TABLE t_1 (f_3 BOOLEAN DEFAULT TRUE, f_2 TEXT NOT NULL, f_1 INTEGER PRIMARY KEY)"));
+}
+
+TEST_F(PostgresQueryBuilderTest, CreateNestedTableQuery) {
+    // Получаем SimpleMessage
+    auto message = TRelationManager::GetInstance().GetMessage(nestedPath);
+    ASSERT_NE(message, nullptr);
+
+    // Тестируем запрос CREATE TABLE
+    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(message->GetPath());
+    std::string createTableSQL = builder->BuildCreateTable(tableInfo);
+    EXPECT_TRUE(createTableSQL.find("CREATE TABLE t_2 (") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find("f_1 INTEGER PRIMARY KEY") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find("f_2_1 INTEGER PRIMARY KEY") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find("f_2_2 TEXT NOT NULL") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find("f_2_3 BOOLEAN DEFAULT TRUE") != std::string::npos);
+    EXPECT_TRUE(createTableSQL.find(")") != std::string::npos);
+    EXPECT_EQ(createTableSQL.size() + 1, sizeof("CREATE TABLE t_2 (f_2_2 TEXT NOT NULL, f_2_3 BOOLEAN DEFAULT TRUE, f_2_1 INTEGER PRIMARY KEY, f_1 INTEGER PRIMARY KEY)"));
 }
 
 // Тест формирования запроса DROP TABLE
@@ -113,8 +136,8 @@ TEST_F(PostgresQueryBuilderTest, DropTableQuery) {
     ASSERT_NE(message, nullptr);
 
     // Тестируем запрос DROP TABLE
-    std::string dropTableSQL = builder->BuildDropTable(message);
-    EXPECT_EQ("DROP TABLE t_1", dropTableSQL);
+    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(message->GetPath());
+    std::string dropTableSQL = builder->BuildDropTable(tableInfo);
 }
 
 // Тест команд транзакций

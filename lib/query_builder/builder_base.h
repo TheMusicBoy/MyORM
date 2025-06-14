@@ -4,7 +4,7 @@
 #include <memory>
 #include <relation/field.h>
 #include <relation/message.h>
-#include <relation/path.h>
+#include <relation/relation_manager.h>
 #include <string>
 #include <vector>
 
@@ -204,38 +204,152 @@ class TDefault : public TClause {
 
 using TDefaultPtr = std::shared_ptr<TDefault>;
 
+enum EKeyType {
+    Simple = 0,
+    Primary = 1,
+    Index = 2
+};
+
 class TColumn : public TClause {
   public:
-    TColumn(const TMessagePath& path = TMessagePath(), NQuery::EColumnType type = NQuery::EColumnType::ESingular)
-        : Path_(path),
-          Type_(type) {}
+    TColumn(const std::vector<uint32_t>& tablePath, const std::vector<uint32_t> fieldPath)
+        : TablePath_(tablePath), FieldPath_(fieldPath) {}
 
     std::string Build(TBuilderBasePtr builder) const override;
     EClauseType Type() const override;
 
-    const TMessagePath& GetPath() const {
-        return Path_;
+    void SetPath(const std::vector<uint32_t>& table, const std::vector<uint32_t>& path) {
+        TablePath_ = table;
+        FieldPath_ = path;
     }
-    void SetPath(const TMessagePath& path) {
-        Path_ = path;
+    const std::vector<uint32_t>& GetFieldPath() const {
+        return FieldPath_;
     }
-    void SetPath(const std::string& path) {
-        Path_ = path;
+    const std::vector<uint32_t>& GetTablePath() const {
+        return TablePath_;
     }
-    NQuery::EColumnType GetType() const {
-        return Type_;
+    EKeyType GetKeyType() const {
+        return KeyType_;
     }
-    void SetType(NQuery::EColumnType type) {
-        Type_ = type;
+    void GetKeyType(EKeyType type) {
+        KeyType_ = type;
+    }
+    NQuery::EColumnType GetColumnType() const {
+        return ColumnType_;
+    }
+    void GetColumnType(NQuery::EColumnType type) {
+        ColumnType_ = type;
     }
 
   private:
-    TMessagePath Path_;
-    NQuery::EColumnType Type_;
+    std::vector<uint32_t> TablePath_;
+    std::vector<uint32_t> FieldPath_;
+    EKeyType KeyType_;
+    NQuery::EColumnType ColumnType_;
     friend TBuilderBase;
 };
 
 using TColumnPtr = std::shared_ptr<TColumn>;
+
+class TColumnDefinition : public TClause {
+  public:
+    TColumnDefinition(const std::vector<uint32_t>& tablePath, const std::vector<uint32_t> fieldPath)
+        : TablePath_(tablePath), FieldPath_(fieldPath) {}
+
+    std::string Build(TBuilderBasePtr builder) const override;
+    EClauseType Type() const override;
+
+    void SetPath(const std::vector<uint32_t>& table, const std::vector<uint32_t>& path) {
+        TablePath_ = table;
+        FieldPath_ = path;
+    }
+    const std::vector<uint32_t>& GetFieldPath() const {
+        return FieldPath_;
+    }
+    const std::vector<uint32_t>& GetTablePath() const {
+        return TablePath_;
+    }
+    EKeyType GetKeyType() const {
+        return KeyType_;
+    }
+    void SetKeyType(EKeyType type) {  // Исправлено с GetKeyType на SetKeyType
+        KeyType_ = type;
+    }
+
+    // Методы для TypeInfo_
+    const TValueInfo& GetTypeInfo() const {
+        return TypeInfo_;
+    }
+    void SetTypeInfo(const TValueInfo& typeInfo) {
+        TypeInfo_ = typeInfo;
+    }
+
+    // Методы для DefaultValueString_
+    const std::string& GetDefaultValueString() const {
+        return DefaultValueString_;
+    }
+    void SetDefaultValueString(const std::string& defaultValueString) {
+        DefaultValueString_ = defaultValueString;
+    }
+
+    // Методы для HasDefault_
+    bool HasDefault() const {
+        return HasDefault_;
+    }
+    void SetHasDefault(bool hasDefault) {
+        HasDefault_ = hasDefault;
+    }
+
+    // Методы для Unique_
+    bool IsUnique() const {
+        return Unique_;
+    }
+    void SetUnique(bool unique) {
+        Unique_ = unique;
+    }
+
+    // Методы для IsRequired_
+    bool IsRequired() const {
+        return IsRequired_;
+    }
+    void SetIsRequired(bool isRequired) {
+        IsRequired_ = isRequired;
+    }
+
+    // Методы для IsPrimaryKey_
+    bool IsPrimaryKey() const {
+        return IsPrimaryKey_;
+    }
+    void SetIsPrimaryKey(bool isPrimaryKey) {
+        IsPrimaryKey_ = isPrimaryKey;
+    }
+
+    // Методы для AutoIncrement_
+    bool IsAutoIncrement() const {
+        return AutoIncrement_;
+    }
+    void SetAutoIncrement(bool autoIncrement) {
+        AutoIncrement_ = autoIncrement;
+    }
+
+  private:
+    std::vector<uint32_t> TablePath_;
+    std::vector<uint32_t> FieldPath_;
+
+    EKeyType KeyType_;
+
+    TValueInfo TypeInfo_;
+    std::string DefaultValueString_;
+    bool HasDefault_;
+    bool Unique_;
+    bool IsRequired_;
+    bool IsPrimaryKey_;
+    bool AutoIncrement_;
+
+    friend TBuilderBase;
+};
+
+using TColumnDefinitionPtr = std::shared_ptr<TColumnDefinition>;
 
 class TTable : public TClause {
   public:
@@ -768,12 +882,15 @@ class TBuilderBase {
     virtual std::string BuildCommitTransaction() = 0;
     virtual std::string BuildRollbackTransaction() = 0;
 
-    virtual std::string BuildCreateTable(NOrm::NRelation::TMessageInfoPtr message) = 0;
-    virtual std::string BuildDropTable(NOrm::NRelation::TMessageInfoPtr message) = 0;
+    virtual std::string BuildColumnDefinition(TColumnDefinitionPtr columnDefinition) = 0;
+
+    virtual std::string BuildCreateTable(const NOrm::NRelation::TTableInfo& table) = 0;
+    virtual std::string BuildDropTable(const NOrm::NRelation::TTableInfo& table) = 0;
+    virtual std::string BuildAlterTable(const NOrm::NRelation::TTableInfo& table, const std::vector<TClausePtr>& operations) = 0;
+
     virtual std::string BuildAddColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) = 0;
     virtual std::string BuildDropColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) = 0;
     virtual std::string BuildAlterColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr newField, NOrm::NRelation::TPrimitiveFieldInfoPtr oldField) = 0;
-    virtual std::string BuildAlterTable(const std::vector<TClausePtr>& operations) = 0;
 
     virtual std::string JoinQueries(const std::vector<std::string>& queries) = 0;
 };

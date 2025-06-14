@@ -187,7 +187,11 @@ std::map<TMessagePath, TMessageInfoPtr> TRelationManager::GetMessagesFromSubtree
 }
 
 TMessageInfoPtr TRelationManager::GetMessage(const TMessagePath& path) {
-    auto it = MessagesByPath_.find(GetHash(path));
+    return GetMessage(GetHash(path));
+}
+
+TMessageInfoPtr TRelationManager::GetMessage(size_t hash) {
+    auto it = MessagesByPath_.find(hash);
     if (it != MessagesByPath_.end()) {
         return it->second;
     }
@@ -196,7 +200,11 @@ TMessageInfoPtr TRelationManager::GetMessage(const TMessagePath& path) {
 }
 
 TRootMessagePtr TRelationManager::GetRootMessage(const TMessagePath& path) {
-    auto it = RootMessagesByPath_.find(GetHash(path));
+    return GetRootMessage(GetHash(path));
+}
+
+TRootMessagePtr TRelationManager::GetRootMessage(size_t hash) {
+    auto it = RootMessagesByPath_.find(hash);
     if (it != RootMessagesByPath_.end()) {
         return it->second;
     }
@@ -205,7 +213,11 @@ TRootMessagePtr TRelationManager::GetRootMessage(const TMessagePath& path) {
 }
 
 TPrimitiveFieldInfoPtr TRelationManager::GetPrimitiveField(const TMessagePath& path) {
-    auto it = PrimitiveFieldsByPath_.find(GetHash(path));
+    return GetPrimitiveField(GetHash(path));
+}
+
+TPrimitiveFieldInfoPtr TRelationManager::GetPrimitiveField(size_t hash) {
+    auto it = PrimitiveFieldsByPath_.find(hash);
     if (it != PrimitiveFieldsByPath_.end()) {
         return it->second;
     }
@@ -214,7 +226,11 @@ TPrimitiveFieldInfoPtr TRelationManager::GetPrimitiveField(const TMessagePath& p
 }
 
 TFieldBasePtr TRelationManager::GetField(const TMessagePath& path) {
-    auto it = FieldsByPath_.find(GetHash(path));
+    return GetField(GetHash(path));
+}
+
+TFieldBasePtr TRelationManager::GetField(size_t hash) {
+    auto it = FieldsByPath_.find(hash);
     if (it != FieldsByPath_.end()) {
         return it->second;
     }
@@ -223,10 +239,27 @@ TFieldBasePtr TRelationManager::GetField(const TMessagePath& path) {
 }
 
 TMessageBasePtr TRelationManager::GetObject(const TMessagePath& path) {
-    if (TMessageBasePtr obj = GetMessage(path)) {
+    return GetObject(GetHash(path));
+}
+
+TMessageBasePtr TRelationManager::GetObject(size_t hash) {
+    if (TMessageBasePtr obj = GetMessage(hash)) {
         return obj;
     }
-    return GetField(path);
+    return GetField(hash);
+}
+
+uint32_t TRelationManager::GetObjectType(const TMessagePath& path) const {
+    return GetObjectType(GetHash(path));
+}
+
+uint32_t TRelationManager::GetObjectType(size_t hash) const {
+    auto it = ObjectType_.find(hash);
+    if (it != ObjectType_.end()) {
+        return it->second;
+    }
+    
+    return 0;
 }
 
 TTableInfo& TRelationManager::GetParentTable(const TMessagePath& path) {

@@ -145,8 +145,8 @@ public:
     std::string BuildRollbackTransaction() override;
 
     // Операции с таблицами
-    std::string BuildCreateTable(NOrm::NRelation::TMessageInfoPtr message) override;
-    std::string BuildDropTable(NOrm::NRelation::TMessageInfoPtr message) override;
+    std::string BuildCreateTable(const NOrm::NRelation::TTableInfo& table) override;
+    std::string BuildDropTable(const NOrm::NRelation::TTableInfo& table) override;
     
     // Операции с колонками
     std::string BuildAddColumn(NOrm::NRelation::TPrimitiveFieldInfoPtr field) override;
@@ -154,7 +154,7 @@ public:
     std::string BuildAlterColumn(
         NOrm::NRelation::TPrimitiveFieldInfoPtr newField,
         NOrm::NRelation::TPrimitiveFieldInfoPtr oldField) override;
-    std::string BuildAlterTable(const std::vector<TClausePtr>& operations) override;
+    std::string BuildAlterTable(const NOrm::NRelation::TTableInfo& table, const std::vector<TClausePtr>& operations) override;
     
     // Объединение запросов
     std::string JoinQueries(const std::vector<std::string>& queries) override;

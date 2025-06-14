@@ -73,7 +73,7 @@ EClauseType TAll::Type() const {
 // TColumn implementation
 
 std::string TColumn::Build(TBuilderBasePtr builder) const {
-    return builder->BuildColumn(Path_, Type_);
+    return builder->BuildColumn(FieldPath_, ColumnType_);
 }
 
 EClauseType TColumn::Type() const {
@@ -204,7 +204,8 @@ EClauseType TRollbackTransaction::Type() const {
 // TCreateTable implementation
 
 std::string TCreateTable::Build(TBuilderBasePtr builder) const {
-    return builder->BuildCreateTable(Message_);
+    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(Message_->GetPath());
+    return builder->BuildCreateTable(tableInfo);
 }
 
 EClauseType TCreateTable::Type() const {
@@ -215,7 +216,8 @@ EClauseType TCreateTable::Type() const {
 // TDropTable implementation
 
 std::string TDropTable::Build(TBuilderBasePtr builder) const {
-    return builder->BuildDropTable(Message_);
+    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(Message_->GetPath());
+    return builder->BuildDropTable(tableInfo);
 }
 
 EClauseType TDropTable::Type() const {
@@ -275,7 +277,29 @@ void TAlterColumn::SetOld(NOrm::NRelation::TPrimitiveFieldInfoPtr oldField) {
 // TAlterTable implementation
 
 std::string TAlterTable::Build(TBuilderBasePtr builder) const {
-    return builder->BuildAlterTable(Operations_);
+    if (!Operations_.empty()) {
+        for (const auto& op : Operations_) {
+            if (auto addCol = std::dynamic_pointer_cast<TAddColumn>(op)) {
+                if (auto field = addCol->GetField()) {
+                    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(field->GetPath());
+                    return builder->BuildAlterTable(tableInfo, Operations_);
+                }
+            } else if (auto dropCol = std::dynamic_pointer_cast<TDropColumn>(op)) {
+                if (auto field = dropCol->GetField()) {
+                    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(field->GetPath());
+                    return builder->BuildAlterTable(tableInfo, Operations_);
+                }
+            } else if (auto alterCol = std::dynamic_pointer_cast<TAlterColumn>(op)) {
+                if (auto field = alterCol->GetNew()) {
+                    auto& tableInfo = TRelationManager::GetInstance().GetParentTable(field->GetPath());
+                    return builder->BuildAlterTable(tableInfo, Operations_);
+                }
+            }
+        }
+    }
+    
+    // Если не удалось определить таблицу, бросаем исключение
+    THROW("Cannot determine table for ALTER TABLE operation");
 }
 
 EClauseType TAlterTable::Type() const {

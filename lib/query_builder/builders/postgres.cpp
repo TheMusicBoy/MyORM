@@ -80,7 +80,7 @@ std::string TPostgresBuilder::GetPostgresType(const TValueInfo& typeInfo) {
 
 std::string TPostgresBuilder::ColumnDefinition(NOrm::NRelation::TPrimitiveFieldInfoPtr field) {
     std::ostringstream oss;
-    oss << field->GetId() << " " << GetPostgresType(field->GetTypeInfo());
+    oss << Format("{field_id} {}", field->GetPath(), GetPostgresType(field->GetTypeInfo()));
     
     // Добавляем NOT NULL, если поле обязательное
     if (field->IsRequired()) {
@@ -826,21 +826,23 @@ std::string TPostgresBuilder::BuildRollbackTransaction() {
 ////////////////////////////////////////////////////////////////////////////////
 // Реализация методов для операций с таблицами
 
-std::string TPostgresBuilder::BuildCreateTable(NOrm::NRelation::TMessageInfoPtr message) {
+std::string TPostgresBuilder::BuildCreateTable(const NOrm::NRelation::TTableInfo& table) {
     auto guard = Stack_.push(NOrm::NRelation::Builder::EClauseType::CreateTable);
+    
     std::ostringstream oss;
-    oss << "CREATE TABLE " << message->GetId() << " (";
+    oss << Format("CREATE TABLE {table_id} (", table.GetPath());
     
     // Список колонок
     bool first = true;
+    auto& relationManager = TRelationManager::GetInstance();
     
-    for (const auto& field : message->PrimitiveFields()) {
+    for (const auto& fieldIdx : table.GetRelatedFields()) {
         if (!first) {
             oss << ", ";
         }
         first = false;
         
-        oss << ColumnDefinition(field);
+        oss << ColumnDefinition(relationManager.GetPrimitiveField(fieldIdx));
     }
     
     oss << ")";
@@ -848,8 +850,15 @@ std::string TPostgresBuilder::BuildCreateTable(NOrm::NRelation::TMessageInfoPtr 
     return oss.str();
 }
 
-std::string TPostgresBuilder::BuildDropTable(NOrm::NRelation::TMessageInfoPtr message) {
+std::string TPostgresBuilder::BuildDropTable(const NOrm::NRelation::TTableInfo& table) {
     auto guard = Stack_.push(NOrm::NRelation::Builder::EClauseType::DropTable);
+    
+    // Получаем сообщение из пути таблицы
+    auto message = TRelationManager::GetInstance().GetMessage(table.GetPath());
+    if (!message) {
+        return "";
+    }
+    
     return "DROP TABLE " + message->GetId();
 }
 
@@ -909,12 +918,17 @@ std::string TPostgresBuilder::BuildAlterColumn(
     return oss.str();
 }
 
-std::string TPostgresBuilder::BuildAlterTable(const std::vector<TClausePtr>& operations) {
+std::string TPostgresBuilder::BuildAlterTable(const NOrm::NRelation::TTableInfo& table, const std::vector<TClausePtr>& operations) {
     auto guard = Stack_.push(NOrm::NRelation::Builder::EClauseType::AlterTable);
-    std::ostringstream oss;
-    oss << "ALTER TABLE ";
     
-    // Таблица определяется контекстом
+    // Получаем сообщение из пути таблицы
+    auto message = TRelationManager::GetInstance().GetMessage(table.GetPath());
+    if (!message) {
+        return "";
+    }
+    
+    std::ostringstream oss;
+    oss << "ALTER TABLE " << message->GetId();
     
     for (size_t i = 0; i < operations.size(); ++i) {
         if (i > 0) oss << ", ";

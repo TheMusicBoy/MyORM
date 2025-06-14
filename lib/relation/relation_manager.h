@@ -4,6 +4,8 @@
 #include <relation/field.h>
 #include <relation/config.h>
 
+#include <common/intrusive_ptr.h>
+
 #include <memory>
 #include <unordered_map>
 #include <map>
@@ -17,7 +19,8 @@ namespace NOrm::NRelation {
 
 class TRelationManager;
 
-class TTableInfo {
+class TTableInfo
+    : public NRefCounted::TRefCountedBase {
 public:
     TTableInfo(const TMessagePath& path, const google::protobuf::Descriptor* desc);
 
@@ -60,6 +63,8 @@ private:
 
 };
 
+using TTableInfoPtr = NCommon::TIntrusivePtr<TTableInfo>;
+
 enum EObjectType {
     None = 0,
     Message = 1 << 0,
@@ -97,21 +102,27 @@ public:
     std::map<TMessagePath, TMessageInfoPtr> GetMessagesFromSubtree(const TMessagePath& rootPath);
 
     // Get a single object by path
+    TMessageBasePtr GetObject(size_t hash);
     TMessageBasePtr GetObject(const TMessagePath& path);
 
     // Get a single message by path
+    TMessageInfoPtr GetMessage(size_t hash);
     TMessageInfoPtr GetMessage(const TMessagePath& path);
 
     // Get a root message by path
+    TRootMessagePtr GetRootMessage(size_t hash);
     TRootMessagePtr GetRootMessage(const TMessagePath& path);
 
     // Get a single field by path
+    TFieldBasePtr GetField(size_t hash);
     TFieldBasePtr GetField(const TMessagePath& path);
 
-    uint32_t GetObjectType(const TMessagePath& path) const;
-
     // Get a primitive field by path
+    TPrimitiveFieldInfoPtr GetPrimitiveField(size_t hash);
     TPrimitiveFieldInfoPtr GetPrimitiveField(const TMessagePath& path);
+
+    uint32_t GetObjectType(size_t hash) const;
+    uint32_t GetObjectType(const TMessagePath& path) const;
 
     // Get a message and all its ancestors
     std::map<TMessagePath, TMessageBasePtr> GetObjectWithAncestors(const TMessagePath& path);
@@ -143,7 +154,7 @@ private:
     std::unordered_map<size_t, uint32_t> ObjectType_;
 
     std::unordered_map<size_t, size_t> ParentTable_;
-    std::unordered_map<size_t, TTableInfo> TableByPath_;
+    std::unordered_map<size_t, TTableInfoPtr> TableByPath_;
 
     // For paths
     std::unordered_map<size_t, std::string> PathToEntryName_;
@@ -174,7 +185,7 @@ inline void FormatHandler(std::ostringstream& out, const ::NOrm::NRelation::TMes
         opts.Set("delimiter", "_");
         opts.Set("prefix", "t_");
         opts.Set("suffix", "");
-        detail::FormatSequenceContainer(out, container.data(), opts);
+        detail::FormatSequenceContainer(out, container.GetTable(), opts);
         return;
     }
 
@@ -191,7 +202,12 @@ inline void FormatHandler(std::ostringstream& out, const ::NOrm::NRelation::TMes
     }
 
     if (options.GetBool("field_id", false)) {
-        out << Format("f_{}", container.number());
+        FormatOptions opts;
+        opts.Set("delimiter", "_");
+        opts.Set("prefix", "f_");
+        opts.Set("suffix", "");
+        auto fieldPath = container.GetField();
+        detail::FormatSequenceContainer(out, fieldPath.empty() ? std::vector<uint32_t>({1}) : fieldPath, opts);
         return;
     }
 
