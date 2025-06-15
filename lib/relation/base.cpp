@@ -47,7 +47,6 @@ EFieldType TFieldBase::GetFieldType() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// TRootBase implementation
 TRootBase::TRootBase(TTableConfigPtr config)
     : Number_(config->Number),
       SnakeCase_(config->SnakeCase),
@@ -77,45 +76,36 @@ const google::protobuf::Descriptor* TRootBase::GetDescriptor() const {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// GetFieldTypeInfo implementation
 TFieldTypeInfoPtr GetFieldTypeInfo(const google::protobuf::FieldDescriptor* desc) {
-    // Check for null pointer
     if (!desc) {
         return std::make_shared<TSingularFieldInfo>();
     }
 
-    // Handle map fields first (maps are a special kind of repeated field)
     if (desc->is_map()) {
         auto info = std::make_shared<TMapFieldInfo>();
-        // For map fields, get the key type
         info->KeyType = desc->message_type()->field(0)->type();
         return info;
     }
 
-    // Handle regular repeated fields
     if (desc->is_repeated()) {
         return std::make_shared<TRepeatedFieldInfo>();
     }
 
-    // Handle real oneof fields (not synthetic ones used for optional fields)
     if (desc->containing_oneof() && !desc->containing_oneof()->is_synthetic()) {
         auto info = std::make_shared<TOneofFieldInfo>();
         info->OneofIndex = desc->containing_oneof()->index();
         return info;
     }
 
-    // In proto3, fields with explicit "optional" keyword have presence
     if (desc->has_presence()) {
         return std::make_shared<TOptionalFieldInfo>();
     }
 
-    // All other fields are singular
     return std::make_shared<TSingularFieldInfo>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Implementation of TFieldIterator
 TFieldIterator::TFieldIterator(std::map<int, TFieldBasePtr>::iterator it)
     : it_(it) {}
 

@@ -75,64 +75,49 @@ enum EObjectType {
  */
 class TRelationManager {
 public:
-    // Access to the singleton
     static TRelationManager& GetInstance();
 
-    // Prohibit copying and moving
     TRelationManager(const TRelationManager&) = delete;
     TRelationManager& operator=(const TRelationManager&) = delete;
     TRelationManager(TRelationManager&&) = delete;
     TRelationManager& operator=(TRelationManager&&) = delete;
 
-    // Public registration methods
     void RegisterRoot(TRootMessagePtr root);
     void RegisterField(TFieldBasePtr field);
 
-    // Get all messages from the subtree
     std::map<TMessagePath, TMessageInfoPtr> GetMessagesFromSubtree(const TMessagePath& rootPath);
 
-    // Get a single object by path
     TMessageBasePtr GetObject(size_t hash);
     TMessageBasePtr GetObject(const TMessagePath& path);
 
-    // Get a single message by path
     TMessageInfoPtr GetMessage(size_t hash);
     TMessageInfoPtr GetMessage(const TMessagePath& path);
 
-    // Get a root message by path
     TRootMessagePtr GetRootMessage(size_t hash);
     TRootMessagePtr GetRootMessage(const TMessagePath& path);
 
-    // Get a single field by path
     TFieldBasePtr GetField(size_t hash);
     TFieldBasePtr GetField(const TMessagePath& path);
 
-    // Get a primitive field by path
     TPrimitiveFieldInfoPtr GetPrimitiveField(size_t hash);
     TPrimitiveFieldInfoPtr GetPrimitiveField(const TMessagePath& path);
 
     uint32_t GetObjectType(size_t hash) const;
     uint32_t GetObjectType(const TMessagePath& path) const;
 
-    // Get a message and all its ancestors
     std::map<TMessagePath, TMessageBasePtr> GetObjectWithAncestors(const TMessagePath& path);
 
-    // Get parent message for a field or message
     TMessageInfoPtr GetParentMessage(const TMessageBasePtr entity);
 
-    // Set parent message for a field or message
     void SetParentMessage(const TMessageBasePtr entity, const TMessageInfoPtr parent);
 
-    // Clear all indexes and data
     void Clear();
 
     TTableInfoPtr GetParentTable(const TMessagePath& path);
 
 private:
-    // Private constructor (singleton)
     TRelationManager() = default;
 
-    // Indexes for fast access
     std::unordered_map<size_t, TMessageInfoPtr> MessagesByPath_;
     std::unordered_map<size_t, TPrimitiveFieldInfoPtr> PrimitiveFieldsByPath_;
 
@@ -144,13 +129,11 @@ private:
     std::unordered_map<size_t, size_t> ParentTable_;
     std::unordered_map<size_t, TTableInfoPtr> TableByPath_;
 
-    // For paths
     std::unordered_map<size_t, std::string> PathToEntryName_;
     std::unordered_map<size_t, std::unordered_map<std::string, size_t>> EntryNameToEntry_;
 
     std::unordered_map<TMessageBasePtr, TMessageInfoPtr> ParentMap_;
     
-    // Caches for expensive operations
     std::unordered_map<TMessagePath, std::map<TMessagePath, TMessageInfoPtr>> MessagesFromSubtreeCache_;
     std::unordered_map<TMessagePath, std::map<TMessagePath, TMessageBasePtr>> ObjectWithAncestorsCache_;
 

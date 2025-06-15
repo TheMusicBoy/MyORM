@@ -10,58 +10,48 @@ namespace NOrm::NRelation {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Structure for boolean field information
 struct TBoolFieldInfo {
     bool defaultValue;
 };
 
-// Structure for 32-bit integer field information
 struct TInt32FieldInfo {
     int32_t defaultValue;
     bool increment;
 };
 
-// Structure for unsigned 32-bit integer field information
 struct TUInt32FieldInfo {
     uint32_t defaultValue;
     bool increment;
 };
 
-// Structure for 64-bit integer field information
 struct TInt64FieldInfo {
     int64_t defaultValue;
     bool increment;
 };
 
-// Structure for unsigned 64-bit integer field information
 struct TUInt64FieldInfo {
     uint64_t defaultValue;
     bool increment;
 };
 
-// Structure for float field information
 struct TFloatFieldInfo {
     float defaultValue;
     bool increment;
 };
 
-// Structure for double field information
 struct TDoubleFieldInfo {
     double defaultValue;
     bool increment;
 };
 
-// Structure for string field information
 struct TStringFieldInfo {
     std::string defaultValue;
 };
 
-// Structure for bytes field information
 struct TBytesFieldInfo {
     std::vector<unsigned char> defaultValue;
 };
 
-// Structure for enumeration field information
 struct TEnumFieldInfo {
     int32_t defaultValue;
     google::protobuf::EnumDescriptor* descriptor;
@@ -80,13 +70,10 @@ using TValueInfo = std::variant<
     TBytesFieldInfo,
     TEnumFieldInfo>;
 
-// Field type information structure
 class TPrimitiveFieldInfo : public TFieldBase {
   public:
-    // Accessor for DefaultValueString_
     const std::string& GetDefaultValueString() const;
 
-    // Accessor for TypeInfo_
     const TValueInfo& GetTypeInfo() const;
 
     std::string GetId() const {
@@ -117,7 +104,6 @@ class TPrimitiveFieldInfo : public TFieldBase {
         return AutoIncrement_;
     }
 
-    // Constructor from google::protobuf::FieldDescriptor*
     TPrimitiveFieldInfo(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path);
 
   private:
@@ -140,7 +126,6 @@ class TPrimitiveFieldInfo : public TFieldBase {
 
     std::string DefaultValueString_;
 
-    // Type-dependent field information using std::variant
     TValueInfo TypeInfo_;
 };
 

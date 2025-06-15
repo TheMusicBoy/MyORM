@@ -85,7 +85,6 @@ using TMessageBasePtr = std::shared_ptr<TMessageBase>;
  */
 class TFieldBase : virtual public TMessageBase {
   public:
-    // Constructor from FieldDescriptor
     TFieldBase(const google::protobuf::FieldDescriptor* fieldDescriptor, const TMessagePath& path);
     virtual ~TFieldBase() = default;
 

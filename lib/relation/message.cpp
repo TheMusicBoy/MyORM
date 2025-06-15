@@ -55,7 +55,6 @@ void RegisterRootMessage(TTableConfigPtr config) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// TMessageInfo implementation
 TMessageInfo::TMessageInfo(const google::protobuf::Descriptor* descriptor)
     : Descriptor_(descriptor) {}
 
@@ -82,7 +81,6 @@ const google::protobuf::Descriptor* TMessageInfo::GetMessageDescriptor() const {
     return Descriptor_;
 }
 
-// Implementation of TMessageFieldIterator
 void TMessageFieldIterator::skipNonMessageFields() {
     while (it_ != end_ && !it_->second->IsMessage()) {
         ++it_;
@@ -123,7 +121,6 @@ TFieldMessagePtr TMessageFieldIterator::operator->() const {
     return std::static_pointer_cast<TFieldMessage>(it_->second);
 }
 
-// Implementation of TMessageFieldsRange
 TMessageFieldsRange::TMessageFieldsRange(std::map<int, TFieldBasePtr>& fields)
     : fields_(fields) {}
 
@@ -135,7 +132,6 @@ TMessageFieldIterator TMessageFieldsRange::end() {
     return TMessageFieldIterator(fields_.end(), fields_.end());
 }
 
-// Implementation of range access methods
 TFieldsRange TMessageInfo::Fields() {
     return TFieldsRange(Fields_);
 }

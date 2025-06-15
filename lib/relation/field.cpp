@@ -27,28 +27,24 @@ TPrimitiveFieldInfo::TPrimitiveFieldInfo(const google::protobuf::FieldDescriptor
         return;
     }
 
-    // Уникальное поле
     if (fieldDescriptor->options().HasExtension(orm::unique)) {
         Unique_ = fieldDescriptor->options().GetExtension(orm::unique);
     } else {
         Unique_ = false;
     }
     
-    // Обязательное поле
     if (fieldDescriptor->options().HasExtension(orm::required)) {
         IsRequired_ = fieldDescriptor->options().GetExtension(orm::required);
     } else {
         IsRequired_ = false;
     }
     
-    // Первичный ключ
     if (fieldDescriptor->options().HasExtension(orm::primary_key)) {
         IsPrimaryKey_ = fieldDescriptor->options().GetExtension(orm::primary_key);
     } else {
         IsPrimaryKey_ = false;
     }
     
-    // Auto increment
     if (fieldDescriptor->options().HasExtension(orm::auto_increment)) {
         AutoIncrement_ = fieldDescriptor->options().GetExtension(orm::auto_increment);
     } else {
@@ -93,7 +89,6 @@ TPrimitiveFieldInfo::TPrimitiveFieldInfo(const google::protobuf::FieldDescriptor
             HandleEnumField(fieldDescriptor);
             break;
         default:
-            // Handle unknown field types
             break;
     }
 }
@@ -212,7 +207,6 @@ void TPrimitiveFieldInfo::HandleEnumField(const google::protobuf::FieldDescripto
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Implementation of TPrimitiveFieldIterator
 void TPrimitiveFieldIterator::skipMessageFields() {
     while (it_ != end_ && it_->second->IsMessage()) {
         ++it_;
@@ -254,7 +248,6 @@ TPrimitiveFieldInfoPtr TPrimitiveFieldIterator::operator->() const {
     return std::static_pointer_cast<TPrimitiveFieldInfo>(it_->second);
 }
 
-// Implementation of TPrimitiveFieldsRange
 TPrimitiveFieldsRange::TPrimitiveFieldsRange(std::map<int, TFieldBasePtr>& fields)
     : fields_(fields) {}
 

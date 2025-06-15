@@ -18,22 +18,18 @@ std::unordered_set<size_t> FindPrimaryFields(const google::protobuf::Descriptor*
     for (int i = 0; i < desc->field_count(); ++i) {
         const google::protobuf::FieldDescriptor* field = desc->field(i);
         
-        // Пропускаем повторяющиеся поля и поля-карты
         if (field->is_repeated() || field->is_map()) {
             continue;
         }
         
-        // Создаем путь к полю
         TMessagePath fieldPath = basePath / field;
         
-        // Проверяем, имеет ли поле расширение primary_key
         const google::protobuf::FieldOptions& options = field->options();
         if (options.HasExtension(orm::primary_key) && 
             options.GetExtension(orm::primary_key)) {
             result.emplace(GetHash(fieldPath));
         }
         
-        // Если это поле типа сообщения, рекурсивно обрабатываем его
         if (field->type() == google::protobuf::FieldDescriptor::TYPE_MESSAGE) {
             result.merge(FindPrimaryFields(field->message_type(), fieldPath));
         }
@@ -66,7 +62,6 @@ const std::unordered_set<size_t>& TTableInfo::GetPrimaryFields() const { return 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Get singleton instance
 TRelationManager& TRelationManager::GetInstance() {
     static TRelationManager instance;
     return instance;
@@ -84,7 +79,6 @@ void TRelationManager::RegisterRoot(TRootMessagePtr message) {
     EntryNameToEntry_[0][message->GetSnakeCase()] = message->Number();
 
     message->Process();
-    // Add message to MessagesByPath_
     MessagesByPath_[pathHash] = message;
     RootMessagesByPath_[pathHash] = message;
     ObjectType_[pathHash] = EObjectType::RootMessage;
@@ -123,30 +117,25 @@ void TRelationManager::RegisterField(TFieldBasePtr field) {
 }
 
 std::map<TMessagePath, TMessageInfoPtr> TRelationManager::GetMessagesFromSubtree(const TMessagePath& rootPath) {
-    // Check if the result is in the cache
     auto cacheIt = MessagesFromSubtreeCache_.find(rootPath);
     if (cacheIt != MessagesFromSubtreeCache_.end()) {
         return cacheIt->second;
     }
     
-    // If rootPath is empty, return empty result for empty paths
     if (rootPath.empty()) {
         std::map<TMessagePath, TMessageInfoPtr> emptyResult;
         MessagesFromSubtreeCache_[rootPath] = emptyResult;
         return emptyResult;
     }
     
-    // If not in cache, compute the result
     std::map<TMessagePath, TMessageInfoPtr> result;
     for (const auto& [_, message] : MessagesByPath_) {
         const auto& path = message->GetPath();
-        // Check if rootPath is an ancestor of the current path
         if (rootPath.isAncestorOf(path) || rootPath == path) {
             result[path] = message;
         }
     }
     
-    // Store the result in the cache
     MessagesFromSubtreeCache_[rootPath] = result;
     
     return result;
@@ -243,10 +232,8 @@ std::map<TMessagePath, TMessageBasePtr> TRelationManager::GetObjectWithAncestors
         return cacheIt->second;
     }
     
-    // If not in cache, compute the result
     std::map<TMessagePath, TMessageBasePtr> result;
     
-    // Get the field
     TMessageBasePtr field = GetObject(path);
     if (!field) {
         ObjectWithAncestorsCache_[path] = result;
@@ -261,7 +248,6 @@ std::map<TMessagePath, TMessageBasePtr> TRelationManager::GetObjectWithAncestors
         parent = GetParentMessage(parent);
     }
     
-    // Store the result in the cache
     ObjectWithAncestorsCache_[path] = result;
     
     return result;
@@ -285,10 +271,8 @@ void TRelationManager::SetParentMessage(const TMessageBasePtr entity, const TMes
         return;
     }
     
-    // Устанавливаем связь между сущностью и ее родителем
     ParentMap_[entity] = parent;
     
-    // Очищаем кеши, зависящие от родительских отношений
     ObjectWithAncestorsCache_.clear();
 }
 

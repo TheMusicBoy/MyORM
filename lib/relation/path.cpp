@@ -234,7 +234,6 @@ bool TMessagePath::operator<(const TMessagePath& other) const {
         }
     }
     
-    // If all common elements are equal, shorter path is less
     return Path_.size() < other.Path_.size();
 }
 
@@ -251,12 +250,10 @@ bool TMessagePath::operator>=(const TMessagePath& other) const {
 }
 
 bool TMessagePath::isParentOf(const TMessagePath& other) const {
-    // A parent path must be exactly one element shorter than the child path
     if (Path_.size() + 1 != other.Path_.size()) {
         return false;
     }
     
-    // All elements in this path must match corresponding elements in the other path
     for (size_t i = 0; i < Path_.size(); ++i) {
         if (Path_[i] != other.Path_[i]) {
             return false;
@@ -267,12 +264,10 @@ bool TMessagePath::isParentOf(const TMessagePath& other) const {
 }
 
 bool TMessagePath::isAncestorOf(const TMessagePath& other) const {
-    // An ancestor path must be shorter than the descendant path
     if (Path_.size() >= other.Path_.size()) {
         return false;
     }
     
-    // All elements in this path must match corresponding elements in the other path
     for (size_t i = 0; i < Path_.size(); ++i) {
         if (Path_[i] != other.Path_[i]) {
             return false;

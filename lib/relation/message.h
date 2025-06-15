@@ -19,13 +19,10 @@ class TMessageInfo : virtual public TMessageBase {
 
     void Process();
 
-    // Method to get range of all fields
     TFieldsRange Fields();
 
-    // Method to get range of primitive fields only
     TPrimitiveFieldsRange PrimitiveFields();
 
-    // Method to get range of message fields only
     TMessageFieldsRange MessageFields();
 
     virtual std::string GetId() const = 0;
