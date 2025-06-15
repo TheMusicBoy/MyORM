@@ -28,8 +28,7 @@ message TAll {}
 
 message TColumn {
     repeated uint32 field_path = 1;
-    repeated int32 indexes = 2;
-    NOrm.NQuery.EColumnType type = 3;
+    NOrm.NQuery.EColumnType type = 2;
 }
 
 message TExpression {
@@ -38,23 +37,13 @@ message TExpression {
 }
 
 message TSelect {
-    repeated int32 selectors = 1;
-    optional int32 where = 2;
-    optional int32 group_by = 3;
-    optional int32 having = 4;
-    optional int32 order_by = 5;
-    optional int32 limit = 6;
-}
-
-// Values
-message TValueRow {
-    repeated uint32 values = 1;
-}
-
-message TDefaultValueList {}
-
-message TValueRows {
-    repeated TValueRow rows = 1;
+    uint32 table_num = 1;
+    repeated int32 selectors = 2;
+    optional int32 where = 3;
+    optional int32 group_by = 4;
+    optional int32 having = 5;
+    optional int32 order_by = 6;
+    optional int32 limit = 7;
 }
 
 // Set field values
@@ -63,33 +52,40 @@ message TUpdateField {
     int32 expression = 2;
 }
 
-// Conflicts
-message TDoNothing {};
+message TAttribute {
+    repeated uint32 path = 1;
+    bytes payload = 2;
+}
 
-message TDoUpdate {
-    repeated TUpdateField updates = 1;
+message TInsertSubrequest {
+    repeated TAttribute attributes = 1;
 }
 
 message TInsert {
-    repeated int32 selectors = 1;
-    int32 values = 2;
-    int32 on_conflict = 3;
+    uint32 table_num = 1;
+    repeated TInsertSubrequest subrequests = 2;
+    bool update_if_exists = 3;
+}
+
+message TUpdateSubrequest {
+    repeated TAttribute attributes = 1;
 }
 
 // Update
 message TUpdate {
-    repeated TUpdateField updates = 1;
-    optional int32 where = 2;
+    uint32 table_num = 1;
+    repeated TUpdateSubrequest updates = 2;
 }
 
 // Delete
 message TDelete {
-    optional int32 where = 1;
+    uint32 table_num = 1;
+    optional int32 where = 2;
 }
 
 // Truncate operation
 message TTruncate {
-    int32 table_num = 1;
+    uint32 table_num = 1;
 }
 
 // Transaction operations
@@ -123,12 +119,6 @@ message TClause {
 
         TColumn column = 31;
         TAll all = 32;
-
-        TValueRows value_rows = 41;
-        TDefaultValueList default_values = 42;
-        TDoNothing do_nothing = 43;
-        TDoUpdate do_update = 44;
-
     }
 }
 

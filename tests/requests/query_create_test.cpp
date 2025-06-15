@@ -163,14 +163,14 @@ TEST_F(QueryBuilderTest, SelectQueryTest) {
     auto col2 = Col(path2);
     
     // Базовый SELECT
-    auto select = Select();
+    auto select = Select("nested_message");
     select.Selectors(col1, col2);
     
     // Проверяем сериализацию и десериализацию
     NOrm::NApi::TQuery proto;
     select.ToProto(&proto);
     
-    auto newSelect = Select();
+    auto newSelect = Select("nested_message");
     newSelect.FromProto(proto, 0);
     
     // Проверяем WHERE условие
@@ -180,12 +180,12 @@ TEST_F(QueryBuilderTest, SelectQueryTest) {
     proto.Clear();
     select.ToProto(&proto);
     
-    newSelect = Select();
+    newSelect = Select("nested_message");
     newSelect.FromProto(proto, 0);
     
     // Полный SELECT с GROUP BY, HAVING, ORDER BY, LIMIT
     auto fullSelect =
-        Select(col1, col2)
+        Select("nested_message", col1, col2)
         .Where(col1 > 5)
         .GroupBy(col1)
         .Having(Count(col1) > 2)
@@ -201,14 +201,25 @@ TEST_F(QueryBuilderTest, SelectQueryTest) {
 
 // Тесты для INSERT запросов
 TEST_F(QueryBuilderTest, InsertQueryTest) {
-    // Создаем колонки
-    auto col1 = Col("nested_message/simple/name");
-    auto col2 = Col("nested_message/simple/active");
-
+    // Создаем атрибуты
+    TMessagePath path1 = nestedPath / "simple/name";
+    TMessagePath path2 = nestedPath / "simple/active";
+    
+    std::vector<TAttribute> attributes;
+    
+    TAttribute attr1;
+    attr1.Path = path1;
+    attr1.SetString("Test Name");
+    
+    TAttribute attr2;
+    attr2.Path = path2;
+    attr2.SetBool(true);
+    
+    std::vector<TAttribute> attributeSet = {attr1, attr2};
+    
     // Базовый INSERT
-    auto insert = Insert();
-    insert.Columns(col1, col2)
-          .AddRow(10, "test");
+    auto insert = Insert("nested_message");
+    insert.AddSubrequest(attributeSet);
     
     // Проверяем сериализацию и десериализацию
     NOrm::NApi::TQuery proto;
@@ -217,81 +228,56 @@ TEST_F(QueryBuilderTest, InsertQueryTest) {
     auto newInsert = TInsert();
     newInsert.FromProto(proto, 0);
     
-    // INSERT с DEFAULT VALUES
-    auto defaultInsert = Insert();
-    defaultInsert.Columns(col1, col2)
-                 .Default();
+    // Проверка свойств
+    ASSERT_EQ(newInsert.GetTableNum(), 2);
+    ASSERT_EQ(newInsert.GetSubrequests().size(), 1);
+    
+    // INSERT с UpdateIfExists
+    auto insertWithUpdate = Insert("nested_message");
+    insertWithUpdate.AddSubrequest(attributeSet);
+    insertWithUpdate.UpdateIfExists();
     
     proto.Clear();
-    defaultInsert.ToProto(&proto);
+    insertWithUpdate.ToProto(&proto);
     
-    auto newDefaultInsert = TInsert();
-    newDefaultInsert.FromProto(proto, 0);
+    auto newInsertWithUpdate = TInsert();
+    newInsertWithUpdate.FromProto(proto, 0);
     
-    // INSERT с ON CONFLICT DO NOTHING
-    auto insertDoNothing = Insert();
-    insertDoNothing.Columns(col1, col2)
-                   .AddRow(10, "test")
-                   .DoNothing();
-    
-    proto.Clear();
-    insertDoNothing.ToProto(&proto);
-    
-    auto newInsertDoNothing = TInsert();
-    newInsertDoNothing.FromProto(proto, 0);
-    
-    // INSERT с ON CONFLICT DO UPDATE
-    auto doUpdate = TDoUpdate();
-    doUpdate.AddUpdate(col1, 20);
-    
-    auto insertDoUpdate = Insert();
-    insertDoUpdate.Columns(col1, col2)
-                  .AddRow(10, "test")
-                  .DoUpdate(doUpdate);
-    
-    proto.Clear();
-    insertDoUpdate.ToProto(&proto);
-    
-    auto newInsertDoUpdate = TInsert();
-    newInsertDoUpdate.FromProto(proto, 0);
+    // Проверка флага UpdateIfExists
+    ASSERT_TRUE(newInsertWithUpdate.GetUpdateIfExists());
 }
 
 // Тесты для UPDATE запросов
 TEST_F(QueryBuilderTest, UpdateQueryTest) {
-    // Создаем колонки
+    // Создаем атрибуты для обновления
     TMessagePath path1 = nestedPath / "simple/name";
     TMessagePath path2 = nestedPath / "simple/active";
-    auto col1 = Col(path1);
-    auto col2 = Col(path2);
+    
+    TAttribute attr1;
+    attr1.Path = path1;
+    attr1.SetString("Updated Name");
+    
+    TAttribute attr2;
+    attr2.Path = path2;
+    attr2.SetBool(false);
+    
+    std::vector<TAttribute> updateAttributes1 = {attr1};
+    std::vector<TAttribute> updateAttributes2 = {attr2};
     
     // Базовый UPDATE
-    auto update = Update();
-    update.AddUpdate(col1, 10)
-          .AddUpdate(col2, "updated");
+    auto update = Update("nested_message");
+    update.AddUpdate(updateAttributes1);
+    update.AddUpdate(updateAttributes2);
     
     // Проверяем сериализацию и десериализацию
     NOrm::NApi::TQuery proto;
     update.ToProto(&proto);
     
     auto newUpdate = TUpdate();
-    newUpdate.FromProto(proto, proto.clauses().size() - 1);
+    newUpdate.FromProto(proto, 0);
     
     // Проверяем количество обновлений
     ASSERT_EQ(newUpdate.GetUpdates().size(), 2);
-    
-    // UPDATE с WHERE условием
-    auto updateWithWhere = Update();
-    updateWithWhere.AddUpdate(col1, 10)
-                   .Where(col2 == "condition");
-    
-    proto.Clear();
-    updateWithWhere.ToProto(&proto);
-    
-    auto newUpdateWithWhere = TUpdate();
-    newUpdateWithWhere.FromProto(proto, proto.clauses().size() - 1);
-    
-    // Проверяем наличие WHERE условия
-    ASSERT_TRUE(newUpdateWithWhere.GetWhere());
 }
 
 // Тесты для DELETE запросов
@@ -301,7 +287,7 @@ TEST_F(QueryBuilderTest, DeleteQueryTest) {
     auto col = Col(path);
     
     // Базовый DELETE
-    auto deleteQuery = Delete();
+    auto deleteQuery = Delete("nested_message");
     
     // Проверяем сериализацию и десериализацию
     NOrm::NApi::TQuery proto;
@@ -311,8 +297,8 @@ TEST_F(QueryBuilderTest, DeleteQueryTest) {
     newDelete.FromProto(proto, proto.clauses_size() - 1);
     
     // DELETE с WHERE условием
-    auto deleteWithWhere = Delete();
-    deleteWithWhere.Where(col == 10);
+    auto deleteWithWhere = Delete("nested_message");
+    deleteWithWhere.Where(col == Val(10));
     
     proto.Clear();
     deleteWithWhere.ToProto(&proto);
@@ -360,12 +346,17 @@ TEST_F(QueryBuilderTest, QueryTest) {
     TMessagePath path = nestedPath / "simple/name";
     auto col = Col(path);
     
-    auto select = Select(col)
+    auto select = Select("nested_message", col)
                   .Where(col > 5);
     
-    auto insert = Insert();
-    insert.Columns(col)
-          .AddRow(10);
+    // Создаем атрибуты для INSERT
+    TAttribute attr;
+    attr.Path = path;
+    attr.SetString("Test Value");
+    std::vector<TAttribute> attributes = {attr};
+    
+    auto insert = Insert("nested_message");
+    insert.AddSubrequest(attributes);
     
     // Создаем корневой объект запроса
     auto query = CreateQuery();
@@ -399,7 +390,7 @@ TEST_F(QueryBuilderTest, StringFunctionsTest) {
     auto upperExprCast = TExpression(upperExpr);
     ASSERT_EQ(upperExprCast.GetExpressionType(), EExpressionType::upper);
     
-    auto substrExpr = SubStr(Val(str), 0, 5);
+    auto substrExpr = SubStr(Val(str), Val(0), Val(5));
     auto substrExprCast = TExpression(substrExpr);
     ASSERT_EQ(substrExprCast.GetExpressionType(), EExpressionType::substring);
     

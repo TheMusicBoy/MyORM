@@ -11,7 +11,7 @@ namespace NOrm::NRelation {
 class TQueryOrganizerBase {
 public:
     virtual Builder::TSelectPtr OrganizeSelect(const TSelect& query) const = 0;
-    virtual Builder::TQueryPtr OrganizeInsert(const TInsert& query) const = 0;
+    virtual Builder::TInsertPtr OrganizeInsert(const TInsert& query) const = 0;
     virtual Builder::TQueryPtr OrganizeUpdate(const TUpdate& query) const = 0;
     virtual Builder::TQueryPtr OrganizeDelete(const TDelete& query) const = 0;
     

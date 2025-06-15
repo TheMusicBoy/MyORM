@@ -1,4 +1,6 @@
 #include <requests/query.h>
+#include <relation/relation_manager.h>
+#include <google/protobuf/dynamic_message.h>
 
 namespace NOrm::NRelation {
 
@@ -17,6 +19,11 @@ TClause RegisterCluase(const NApi::TQuery& input, uint32_t startPoint) {
 
 } // namespace
 
+// Базовый метод в TClauseImpl
+NOrm::NApi::TClause::ValueCase TClauseImpl::Type() const {
+    return NOrm::NApi::TClause::VALUE_NOT_SET;
+}
+
 // Helper function to create clause from proto
 TClause CreateClauseFromProto(const NApi::TQuery& input, uint32_t startPoint) {
     switch (input.clauses().at(startPoint).value_case()) {
@@ -34,14 +41,6 @@ TClause CreateClauseFromProto(const NApi::TQuery& input, uint32_t startPoint) {
             return RegisterCluase<TColumn>(input, startPoint);
         case NOrm::NApi::TClause::ValueCase::kSelect:
             return RegisterCluase<TSelect>(input, startPoint);
-        case NOrm::NApi::TClause::ValueCase::kValueRows:
-            return RegisterCluase<TValueRows>(input, startPoint);
-        case NOrm::NApi::TClause::ValueCase::kDefaultValues:
-            return RegisterCluase<TDefaultValues>(input, startPoint);
-        case NOrm::NApi::TClause::ValueCase::kDoNothing:
-            return RegisterCluase<TDoNothing>(input, startPoint);
-        case NOrm::NApi::TClause::ValueCase::kDoUpdate:
-            return RegisterCluase<TDoUpdate>(input, startPoint);
         case NOrm::NApi::TClause::ValueCase::kInsert:
             return RegisterCluase<TInsert>(input, startPoint);
         case NOrm::NApi::TClause::ValueCase::kUpdate:
@@ -75,6 +74,10 @@ void TStringImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     Value_ = input.clauses().at(startPoint).string().value();
 }
 
+NOrm::NApi::TClause::ValueCase TStringImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kString;
+}
+
 TString& TString::SetValue(const std::string& value) {
     std::dynamic_pointer_cast<TStringImpl>(Impl_)->Value_ = value;
     return *this;
@@ -95,6 +98,10 @@ void TIntImpl::ToProto(NApi::TQuery* output) const {
 
 void TIntImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     Value_ = input.clauses().at(startPoint).integer().value();
+}
+
+NOrm::NApi::TClause::ValueCase TIntImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kInteger;
 }
 
 TInt& TInt::SetValue(int32_t value) {
@@ -119,6 +126,10 @@ void TFloatImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     Value_ = input.clauses().at(startPoint).float_().value();
 }
 
+NOrm::NApi::TClause::ValueCase TFloatImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kFloat;
+}
+
 TFloat& TFloat::SetValue(double value) {
     std::dynamic_pointer_cast<TFloatImpl>(Impl_)->Value_ = value;
     return *this;
@@ -139,6 +150,10 @@ void TBoolImpl::ToProto(NApi::TQuery* output) const {
 
 void TBoolImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     Value_ = input.clauses().at(startPoint).bool_().value();
+}
+
+NOrm::NApi::TClause::ValueCase TBoolImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kBool;
 }
 
 TBool& TBool::SetValue(bool value) {
@@ -172,6 +187,10 @@ void TExpressionImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) 
     }
 }
 
+NOrm::NApi::TClause::ValueCase TExpressionImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kExpression;
+}
+
 TExpression& TExpression::SetExpressionType(NQuery::EExpressionType type) {
     std::dynamic_pointer_cast<TExpressionImpl>(Impl_)->ExpressionType_ = type;
     return *this;
@@ -201,6 +220,10 @@ void TAllImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     // Nothing to do for TAll
 }
 
+NOrm::NApi::TClause::ValueCase TAllImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kAll;
+}
+
 void TAll::ToProto(NOrm::NApi::TQuery* output) const {
     Impl_->ToProto(output);
 }
@@ -217,19 +240,6 @@ void TColumnImpl::ToProto(NApi::TQuery* output) const {
     for (const auto& num : Path_) {
         columnVal->add_field_path(num);
     }
-    for (size_t pos = 0; pos < Path_.GetIndexSize(); pos++) {
-        const auto& idx = Path_.GetIndex(pos);
-        if (std::holds_alternative<TMessagePath::TAllIndex>(idx)) {
-            NRelation::TAll().ToProto(output);
-        } else if (std::holds_alternative<int64_t>(idx)) {
-            NRelation::TInt().SetValue(std::get<int64_t>(idx)).ToProto(output);
-        } else if (std::holds_alternative<double>(idx)) {
-            NRelation::TFloat().SetValue(std::get<double>(idx)).ToProto(output);
-        } else if (std::holds_alternative<std::string>(idx)) {
-            NRelation::TString().SetValue(std::get<std::string>(idx)).ToProto(output);
-        }
-        columnVal->add_indexes(output->clauses_size() - 1);
-    }
     columnVal->set_type(Type_);
     
     output->add_clauses()->set_allocated_column(columnVal);
@@ -237,28 +247,12 @@ void TColumnImpl::ToProto(NApi::TQuery* output) const {
 
 void TColumnImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     const auto& column = input.clauses().at(startPoint).column();
-    std::vector<TMessagePath::TIndex> indexes;
-    for (const auto& idx : column.indexes()) {
-        const auto& idxClause = input.clauses().at(idx);
-        switch (idxClause.value_case()) {
-            case NOrm::NApi::TClause::ValueCase::kAll:
-                indexes.emplace_back(TMessagePath::TAllIndex());
-                break;
-            case NOrm::NApi::TClause::ValueCase::kInteger:
-                indexes.emplace_back(idxClause.integer().value());
-                break;
-            case NOrm::NApi::TClause::ValueCase::kFloat:
-                indexes.emplace_back(idxClause.float_().value());
-                break;
-            case NOrm::NApi::TClause::ValueCase::kString:
-                indexes.emplace_back(idxClause.string().value());
-                break;
-            default:
-                THROW("Uncapable type of index in path");
-        }
-    }
-    Path_ = TMessagePath(column.field_path().begin(), column.field_path().end(), indexes.begin(), indexes.end());
+    Path_ = TMessagePath(column.field_path().begin(), column.field_path().end());
     Type_ = column.type();
+}
+
+NOrm::NApi::TClause::ValueCase TColumnImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kColumn;
 }
 
 TColumn& TColumn::SetPath(const TMessagePath& path) {
@@ -288,6 +282,10 @@ void TDefaultImpl::ToProto(NApi::TQuery* output) const {
 
 void TDefaultImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     // Nothing to do for TDefault
+}
+
+NOrm::NApi::TClause::ValueCase TDefaultImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kDefault;
 }
 
 void TDefault::ToProto(NOrm::NApi::TQuery* output) const {
@@ -366,6 +364,15 @@ void TSelectImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     }
 }
 
+NOrm::NApi::TClause::ValueCase TSelectImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kSelect;
+}
+
+TSelect& TSelect::SetTableNum(uint32_t tableNum) {
+    std::dynamic_pointer_cast<TSelectImpl>(Impl_)->Table_ = tableNum;
+    return *this;
+}
+
 TSelect& TSelect::Where(TClause conditions) {
     std::dynamic_pointer_cast<TSelectImpl>(Impl_)->Where_ = conditions;
     return *this;
@@ -391,118 +398,116 @@ TSelect& TSelect::Limit(TClause limit) {
     return *this;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// TDefaultValueList implementation
-
-void TDefaultValuesImpl::ToProto(NApi::TQuery* output) const {
-    output->add_clauses()->mutable_default_values();
+uint32_t TSelect::GetTableNum() const {
+    return std::dynamic_pointer_cast<TSelectImpl>(Impl_)->Table_;
 }
 
-void TDefaultValuesImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    // Nothing to do for TDefaultValueList
+const std::vector<TClause>& TSelect::GetSelectors() const {
+    return std::dynamic_pointer_cast<TSelectImpl>(Impl_)->Selectors_;
 }
 
-void TDefaultValues::ToProto(NOrm::NApi::TQuery* output) const {
-    Impl_->ToProto(output);
+TClause TSelect::GetWhere() const {
+    return std::dynamic_pointer_cast<TSelectImpl>(Impl_)->Where_;
 }
 
-void TDefaultValues::FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) {
-    Impl_->FromProto(input, startPoint);
+TClause TSelect::GetGroupBy() const {
+    return std::dynamic_pointer_cast<TSelectImpl>(Impl_)->GroupBy_;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// TValueRows implementation
+TClause TSelect::GetHaving() const {
+    return std::dynamic_pointer_cast<TSelectImpl>(Impl_)->Having_;
+}
 
-void TValueRowsImpl::ToProto(NApi::TQuery* output) const {
-    auto rowValues = new NApi::TValueRows();
-    
-    for (auto& row : Rows_) {
-        auto valueRow = rowValues->add_rows();
-        for (auto& val : row) {
-            val.ToProto(output);
-            valueRow->add_values(output->clauses_size() - 1);
+TClause TSelect::GetOrderBy() const {
+    return std::dynamic_pointer_cast<TSelectImpl>(Impl_)->OrderBy_;
+}
+
+TClause TSelect::GetLimit() const {
+    return std::dynamic_pointer_cast<TSelectImpl>(Impl_)->Limit_;
+}
+
+void TAttribute::FromProto(const NOrm::NApi::TAttribute& attr) {
+    static google::protobuf::DynamicMessageFactory factory;
+    auto& relationManager = NRelation::TRelationManager::GetInstance();
+
+    Path = TMessagePath(attr.path().begin(), attr.path().end());
+    auto type = relationManager.GetObjectType(Path);
+    if (type & EObjectType::Message) {
+        const google::protobuf::Message* prototype = factory.GetPrototype(relationManager.GetMessage(Path)->GetMessageDescriptor());
+
+        SetMessage(prototype->New());
+        ASSERT(GetMessage()->ParseFromString(attr.payload()), "Failed to parse attribute in {}", Path);
+    } else {
+        const auto& typeInfo = relationManager.GetPrimitiveField(Path)->GetTypeInfo();
+        if (std::holds_alternative<TBoolFieldInfo>(typeInfo)) {
+            SetBool(attr.payload()[0] != 0);
+        } else if (std::holds_alternative<TInt32FieldInfo>(typeInfo)) {
+            int32_t value;
+            std::memcpy(&value, attr.payload().data(), sizeof(int32_t));
+            SetInt32(value);
+        } else if (std::holds_alternative<TUInt32FieldInfo>(typeInfo)) {
+            uint32_t value;
+            std::memcpy(&value, attr.payload().data(), sizeof(uint32_t));
+            SetUint32(value);
+        } else if (std::holds_alternative<TUInt64FieldInfo>(typeInfo)) {
+            uint64_t value;
+            std::memcpy(&value, attr.payload().data(), sizeof(uint64_t));
+            SetUint64(value);
+        } else if (std::holds_alternative<TInt64FieldInfo>(typeInfo)) {
+            int64_t value;
+            std::memcpy(&value, attr.payload().data(), sizeof(int64_t));
+            SetInt64(value);
+        } else if (std::holds_alternative<TFloatFieldInfo>(typeInfo)) {
+            float value;
+            std::memcpy(&value, attr.payload().data(), sizeof(float));
+            SetFloat(value);
+        } else if (std::holds_alternative<TDoubleFieldInfo>(typeInfo)) {
+            double value;
+            std::memcpy(&value, attr.payload().data(), sizeof(double));
+            SetDouble(value);
+        } else if (std::holds_alternative<TStringFieldInfo>(typeInfo)) {
+            std::string value(attr.payload().begin(), attr.payload().end());
+            SetString(value);
         }
     }
-    
-    output->add_clauses()->set_allocated_value_rows(rowValues);
 }
 
-void TValueRowsImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    const auto& rowValues = input.clauses().at(startPoint).value_rows();
-    
-    Rows_.clear();
-    for (const auto& row : rowValues.rows()) {
-        std::vector<TClause> rowValues;
-        for (const auto& value : row.values()) {
-            rowValues.emplace_back(CreateClauseFromProto(input, value));
-        }
-        Rows_.push_back(rowValues);
+NOrm::NApi::TAttribute TAttribute::ToProto() const {
+    NOrm::NApi::TAttribute attribute;
+    for (auto e : Path.data()) {
+        attribute.add_path(e);
     }
-}
 
-TValueRows& TValueRows::AddRow(const std::vector<TClause>& row) {
-    std::dynamic_pointer_cast<TValueRowsImpl>(Impl_)->Rows_.push_back(row);
-    return *this;
-}
-
-const std::vector<std::vector<TClause>>& TValueRows::GetRows() const {
-    return std::dynamic_pointer_cast<TValueRowsImpl>(Impl_)->Rows_;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// TDoNothing implementation
-
-void TDoNothingImpl::ToProto(NApi::TQuery* output) const {
-    output->add_clauses()->mutable_do_nothing();
-}
-
-void TDoNothingImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    // Nothing to do for TDoNothing
-}
-
-void TDoNothing::ToProto(NOrm::NApi::TQuery* output) const {
-    Impl_->ToProto(output);
-}
-
-void TDoNothing::FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) {
-    Impl_->FromProto(input, startPoint);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// TDoUpdate implementation
-
-void TDoUpdateImpl::ToProto(NApi::TQuery* output) const {
-    auto doUpdate = new NApi::TDoUpdate();
-    
-    for (auto& update : Updates_) {
-        auto updateField = doUpdate->add_updates();
-        update.first.ToProto(output);
-        updateField->set_column_path(output->clauses_size() - 1);
-        update.second.ToProto(output);
-        updateField->set_expression(output->clauses_size() - 1);
+    if (std::holds_alternative<bool>(Data)) {
+        uint8_t value = std::get<bool>(Data) ? 1 : 0;
+        attribute.set_payload(std::string(reinterpret_cast<char*>(&value), sizeof(uint8_t)));
+    } else if (std::holds_alternative<uint32_t>(Data)) {
+        uint32_t value = std::get<uint32_t>(Data);
+        attribute.set_payload(std::string(reinterpret_cast<char*>(&value), sizeof(uint32_t)));
+    } else if (std::holds_alternative<int32_t>(Data)) {
+        int32_t value = std::get<int32_t>(Data);
+        attribute.set_payload(std::string(reinterpret_cast<char*>(&value), sizeof(int32_t)));
+    } else if (std::holds_alternative<uint64_t>(Data)) {
+        uint64_t value = std::get<uint64_t>(Data);
+        attribute.set_payload(std::string(reinterpret_cast<char*>(&value), sizeof(uint64_t)));
+    } else if (std::holds_alternative<int64_t>(Data)) {
+        int64_t value = std::get<int64_t>(Data);
+        attribute.set_payload(std::string(reinterpret_cast<char*>(&value), sizeof(int64_t)));
+    } else if (std::holds_alternative<float>(Data)) {
+        float value = std::get<float>(Data);
+        attribute.set_payload(std::string(reinterpret_cast<char*>(&value), sizeof(float)));
+    } else if (std::holds_alternative<double>(Data)) {
+        double value = std::get<double>(Data);
+        attribute.set_payload(std::string(reinterpret_cast<char*>(&value), sizeof(double)));
+    } else if (std::holds_alternative<std::string>(Data)) {
+        attribute.set_payload(std::get<std::string>(Data));
+    } else if (std::holds_alternative<std::shared_ptr<google::protobuf::Message>>(Data)) {
+        std::string serialized;
+        std::get<std::shared_ptr<google::protobuf::Message>>(Data)->SerializeToString(&serialized);
+        attribute.set_payload(serialized);
     }
-    
-    output->add_clauses()->set_allocated_do_update(doUpdate);
-}
 
-void TDoUpdateImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    const auto& doUpdate = input.clauses().at(startPoint).do_update();
-
-    Updates_.clear();
-    for (const auto& update : doUpdate.updates()) {
-        TColumn column = CreateClauseFromProto(input, update.column_path());
-        auto expression = CreateClauseFromProto(input, update.expression());
-        Updates_.emplace_back(std::make_pair(column, expression));
-    }
-}
-
-TDoUpdate& TDoUpdate::AddUpdate(TColumn column, TClause expression) {
-    std::dynamic_pointer_cast<TDoUpdateImpl>(Impl_)->Updates_.emplace_back(std::make_pair(column, expression));
-    return *this;
-}
-
-const std::vector<std::pair<TColumn, TClause>>& TDoUpdate::GetUpdates() const {
-    return std::dynamic_pointer_cast<TDoUpdateImpl>(Impl_)->Updates_;
+    return attribute;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -510,65 +515,64 @@ const std::vector<std::pair<TColumn, TClause>>& TDoUpdate::GetUpdates() const {
 
 void TInsertImpl::ToProto(NApi::TQuery* output) const {
     auto insert = new NApi::TInsert();
+    insert->set_table_num(TableNum_);
+    insert->set_update_if_exists(UpdateIfExists_);
     
-    for (auto& selector : Selectors_) {
-        selector.ToProto(output);
-        insert->add_selectors(output->clauses_size() - 1);
+    for (const auto& subrequest : Subrequests_) {
+        auto subRequestProto = insert->add_subrequests();
+        for (const auto& attr : subrequest) {
+            *subRequestProto->add_attributes() = attr.ToProto();
+        }
     }
     
-    if (Values_) {
-        Values_.ToProto(output);
-        insert->set_values(output->clauses_size() - 1);
-    }
-    
-    if (OnConflict_) {
-        OnConflict_.ToProto(output);
-        insert->set_on_conflict(output->clauses_size() - 1);
-    }
-
     output->add_clauses()->set_allocated_insert(insert);
 }
 
 void TInsertImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     const auto& insert = input.clauses().at(startPoint).insert();
     
-    Selectors_.clear();
-    for (const auto& selector : insert.selectors()) {
-        Selectors_.emplace_back(CreateClauseFromProto(input, selector));
-    }
+    TableNum_ = insert.table_num();
+    UpdateIfExists_ = insert.update_if_exists();
     
-    if (insert.values() != 0) {
-        Values_ = CreateClauseFromProto(input, insert.values());
+    Subrequests_.clear();
+    for (const auto& subrequest : insert.subrequests()) {
+        std::vector<TAttribute> attributes;
+        for (const auto& attr : subrequest.attributes()) {
+            attributes.emplace_back().FromProto(attr);
+        }
+        Subrequests_.push_back(attributes);
     }
-    
-    if (insert.on_conflict() != 0) {
-        OnConflict_ = CreateClauseFromProto(input, insert.on_conflict());
-    }
 }
 
-TInsert& TInsert::Values(TClause values) {
-    std::dynamic_pointer_cast<TInsertImpl>(Impl_)->Values_ = values;
+NOrm::NApi::TClause::ValueCase TInsertImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kInsert;
+}
+
+TInsert& TInsert::SetTableNum(uint32_t tableNum) {
+    std::dynamic_pointer_cast<TInsertImpl>(Impl_)->TableNum_ = tableNum;
     return *this;
 }
 
-TInsert& TInsert::Default() {
-    std::dynamic_pointer_cast<TInsertImpl>(Impl_)->Values_ = TDefaultValues();
+TInsert& TInsert::AddSubrequest(const std::vector<TAttribute>& attributes) {
+    std::dynamic_pointer_cast<TInsertImpl>(Impl_)->Subrequests_.push_back(attributes);
     return *this;
 }
 
-TInsert& TInsert::DoNothing() {
-    std::dynamic_pointer_cast<TInsertImpl>(Impl_)->OnConflict_ = TDoNothing();
+TInsert& TInsert::UpdateIfExists() {
+    std::dynamic_pointer_cast<TInsertImpl>(Impl_)->UpdateIfExists_ = true;
     return *this;
 }
 
-TInsert& TInsert::DoUpdate(TClause action) {
-    std::dynamic_pointer_cast<TInsertImpl>(Impl_)->OnConflict_ = action;
-    return *this;
+uint32_t TInsert::GetTableNum() const {
+    return std::dynamic_pointer_cast<TInsertImpl>(Impl_)->TableNum_;
 }
 
-TInsert& TInsert::OnConflict(TClause action) {
-    std::dynamic_pointer_cast<TInsertImpl>(Impl_)->OnConflict_ = action;
-    return *this;
+const std::vector<std::vector<TAttribute>>& TInsert::GetSubrequests() const {
+    return std::dynamic_pointer_cast<TInsertImpl>(Impl_)->Subrequests_;
+}
+
+bool TInsert::GetUpdateIfExists() const {
+    return std::dynamic_pointer_cast<TInsertImpl>(Impl_)->UpdateIfExists_;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -576,18 +580,13 @@ TInsert& TInsert::OnConflict(TClause action) {
 
 void TUpdateImpl::ToProto(NApi::TQuery* output) const {
     auto update = new NApi::TUpdate();
+    update->set_table_num(TableNum_);
     
-    for (auto& updateField : Updates_) {
-        auto field = update->add_updates();
-        updateField.first.ToProto(output);
-        field->set_column_path(output->clauses_size() - 1);
-        updateField.second.ToProto(output);
-        field->set_expression(output->clauses_size() - 1);
-    }
-    
-    if (Where_) {
-        Where_.ToProto(output);
-        update->set_where(output->clauses_size() - 1);
+    for (const auto& updateSet : Updates_) {
+        auto updateSubrequest = update->add_updates();
+        for (const auto& attr : updateSet) {
+            *updateSubrequest->add_attributes() = attr.ToProto();
+        }
     }
     
     output->add_clauses()->set_allocated_update(update);
@@ -596,34 +595,38 @@ void TUpdateImpl::ToProto(NApi::TQuery* output) const {
 void TUpdateImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     const auto& update = input.clauses().at(startPoint).update();
     
-    Updates_.clear();
-    for (const auto& updateField : update.updates()) {
-        TColumn column = CreateClauseFromProto(input, updateField.column_path());
-        TClause expression = CreateClauseFromProto(input, updateField.expression());
-        Updates_.emplace_back(column, expression);
-    }
+    TableNum_ = update.table_num();
     
-    if (update.has_where()) {
-        Where_ = CreateClauseFromProto(input, update.where());
+    Updates_.clear();
+    for (const auto& updateSubrequest : update.updates()) {
+        std::vector<TAttribute> attributes;
+        for (const auto& attr : updateSubrequest.attributes()) {
+            attributes.emplace_back().FromProto(attr);
+        }
+        Updates_.push_back(attributes);
     }
 }
 
-TUpdate& TUpdate::AddUpdate(TColumn column, TClause expression) {
-    std::dynamic_pointer_cast<TUpdateImpl>(Impl_)->Updates_.emplace_back(std::make_pair(column, expression));
+TUpdate& TUpdate::SetTableNum(uint32_t tableNum) {
+    std::dynamic_pointer_cast<TUpdateImpl>(Impl_)->TableNum_ = tableNum;
     return *this;
 }
 
-TUpdate& TUpdate::Where(TClause conditions) {
-    std::dynamic_pointer_cast<TUpdateImpl>(Impl_)->Where_ = conditions;
+NOrm::NApi::TClause::ValueCase TUpdateImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kUpdate;
+}
+
+TUpdate& TUpdate::AddUpdate(const std::vector<TAttribute>& attributes) {
+    std::dynamic_pointer_cast<TUpdateImpl>(Impl_)->Updates_.push_back(attributes);
     return *this;
 }
 
-const std::vector<std::pair<TColumn, TClause>>& TUpdate::GetUpdates() const {
+uint32_t TUpdate::GetTableNum() const {
+    return std::dynamic_pointer_cast<TUpdateImpl>(Impl_)->TableNum_;
+}
+
+const std::vector<std::vector<TAttribute>>& TUpdate::GetUpdates() const {
     return std::dynamic_pointer_cast<TUpdateImpl>(Impl_)->Updates_;
-}
-
-TClause TUpdate::GetWhere() const {
-    return std::dynamic_pointer_cast<TUpdateImpl>(Impl_)->Where_;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -631,6 +634,7 @@ TClause TUpdate::GetWhere() const {
 
 void TDeleteImpl::ToProto(NApi::TQuery* output) const {
     auto deleteVal = new NApi::TDelete();
+    deleteVal->set_table_num(TableNum_);
     
     if (Where_) {
         Where_.ToProto(output);
@@ -643,14 +647,29 @@ void TDeleteImpl::ToProto(NApi::TQuery* output) const {
 void TDeleteImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     const auto& deleteVal = input.clauses().at(startPoint).delete_();
     
+    TableNum_ = deleteVal.table_num();
+    
     if (deleteVal.has_where()) {
         Where_ = CreateClauseFromProto(input, deleteVal.where());
     }
 }
 
+NOrm::NApi::TClause::ValueCase TDeleteImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kDelete;
+}
+
 TDelete& TDelete::Where(TClause conditions) {
     std::dynamic_pointer_cast<TDeleteImpl>(Impl_)->Where_ = conditions;
     return *this;
+}
+
+TDelete& TDelete::SetTableNum(uint32_t tableNum) {
+    std::dynamic_pointer_cast<TDeleteImpl>(Impl_)->TableNum_ = tableNum;
+    return *this;
+}
+
+uint32_t TDelete::GetTableNum() const {
+    return std::dynamic_pointer_cast<TDeleteImpl>(Impl_)->TableNum_;
 }
 
 TClause TDelete::GetWhere() const {
@@ -669,6 +688,10 @@ void TTruncateImpl::ToProto(NApi::TQuery* output) const {
 
 void TTruncateImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     TableNum_ = input.clauses().at(startPoint).truncate().table_num();
+}
+
+NOrm::NApi::TClause::ValueCase TTruncateImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kTruncate;
 }
 
 TTruncate& TTruncate::SetTableNum(uint32_t tableNum) {
@@ -692,6 +715,10 @@ void TStartTransactionImpl::FromProto(const NApi::TQuery& input, uint32_t startP
     // Nothing to do for now
 }
 
+NOrm::NApi::TClause::ValueCase TStartTransactionImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kStartTransaction;
+}
+
 void TStartTransaction::ToProto(NOrm::NApi::TQuery* output) const {
     Impl_->ToProto(output);
 }
@@ -713,6 +740,10 @@ void TCommitTransactionImpl::FromProto(const NApi::TQuery& input, uint32_t start
     // Nothing to do
 }
 
+NOrm::NApi::TClause::ValueCase TCommitTransactionImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kCommitTransaction;
+}
+
 void TCommitTransaction::ToProto(NOrm::NApi::TQuery* output) const {
     Impl_->ToProto(output);
 }
@@ -728,6 +759,10 @@ void TRollbackTransactionImpl::ToProto(NApi::TQuery* output) const {
 
 void TRollbackTransactionImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
     // Nothing to do
+}
+
+NOrm::NApi::TClause::ValueCase TRollbackTransactionImpl::Type() const {
+    return NOrm::NApi::TClause::ValueCase::kRollbackTransaction;
 }
 
 void TRollbackTransaction::ToProto(NOrm::NApi::TQuery* output) const {
@@ -1280,22 +1315,28 @@ TSelect Select() {
     return TSelect();
 }
 
-TInsert Insert() {
-    return TInsert();
+TInsert Insert(const std::string& path) {
+    auto clause = TInsert();
+    clause.SetTableNum(TMessagePath(path).back());
+    return clause;
 }
 
-TUpdate Update() {
-    return TUpdate();
+TUpdate Update(const std::string& path) {
+    auto clause = TUpdate();
+    clause.SetTableNum(TMessagePath(path).back());
+    return clause;
 }
 
-TDelete Delete() {
-    return TDelete();
+TDelete Delete(const std::string& path) {
+    auto clause = TDelete();
+    clause.SetTableNum(TMessagePath(path).back());
+    return clause;
 }
 
-TTruncate Truncate(uint32_t tableNum) {
-    auto truncate = TTruncate();
-    truncate.SetTableNum(tableNum);
-    return truncate;
+TTruncate Truncate(const std::string& path) {
+    auto clause = TTruncate();
+    clause.SetTableNum(TMessagePath(path).back());
+    return clause;
 }
 
 TQuery CreateQuery() {

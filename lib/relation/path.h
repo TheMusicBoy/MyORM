@@ -32,9 +32,8 @@ class TMessagePath {
     TMessagePath(const std::vector<uint32_t>& entries);
 
     // Constructor that initializes with a range of elements
-    template <typename EntryIt, typename IdxIt>
-    TMessagePath(EntryIt entryBegin, EntryIt entryEnd, IdxIt idxBegin, IdxIt idxEnd)
-        : Path_(entryBegin, entryEnd), Indexes_(idxBegin, idxEnd), WaitIndex_(false) {}
+    template <typename EntryIt>
+    TMessagePath(EntryIt entryBegin, EntryIt entryEnd) : Path_(entryBegin, entryEnd) {}
 
     // Copy constructor
     TMessagePath(const TMessagePath& other);
@@ -128,13 +127,6 @@ class TMessagePath {
     bool isChildOf(const TMessagePath& other) const;
     bool isDescendantOf(const TMessagePath& other) const;
 
-    struct TAllIndex {};
-
-    using TIndex = std::variant<TAllIndex, int64_t, double, std::string>;
-
-    size_t GetIndexSize() const;
-    TIndex GetIndex(size_t idx) const;
-
     TMessagePath GetTablePath() const;
 
     std::vector<uint32_t> GetTable() const;
@@ -146,15 +138,9 @@ class TMessagePath {
     void PopEntry();
 
     std::vector<uint32_t> Path_;
-    std::vector<TIndex> Indexes_;
-
-    bool WaitIndex_;
-    google::protobuf::FieldDescriptor::Type IndexType_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-
-} // namespace NOrm::NRelation
 
 size_t GetNextPathEntryHash(size_t parent, size_t entry);
 
@@ -162,12 +148,16 @@ size_t GetHash(const std::vector<uint32_t>& path);
 
 size_t GetHash(const NOrm::NRelation::TMessagePath& path);
 
+////////////////////////////////////////////////////////////////////////////////
+
+} // namespace NOrm::NRelation
+
 // Hash function for TMessagePath
 namespace std {
 template <>
 struct hash<NOrm::NRelation::TMessagePath> {
     size_t operator()(const NOrm::NRelation::TMessagePath& path) const {
-        return GetHash(path);
+        return NOrm::NRelation::GetHash(path);
     }
 };
 }

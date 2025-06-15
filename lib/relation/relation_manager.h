@@ -24,8 +24,6 @@ class TTableInfo
 public:
     TTableInfo(const TMessagePath& path, const google::protobuf::Descriptor* desc);
 
-    TTableInfo(const TMessagePath& path, const google::protobuf::FieldDescriptor* desc);
-
     void AddRelatedMessage(size_t hash);
 
     void AddRelatedMessage(const TMessagePath& path) { AddRelatedMessage(GetHash(path)); }
@@ -38,26 +36,18 @@ public:
 
     const std::unordered_set<size_t>& GetRelatedFields() const;
 
-    void AddRelatedTable(size_t hash);
-
-    void AddRelatedTable(const TMessagePath& path) { AddRelatedTable(GetHash(path)); }
-
-    const std::unordered_set<size_t>& GetRelatedTables() const;
-
     const TMessagePath& GetPath() const;
 
     const std::unordered_set<size_t>& GetPrimaryFields() const;
 
-    const std::vector<google::protobuf::FieldDescriptor::Type>& GetIndexes() const;
+    bool IsRoot() const;
 
 private:
     TMessagePath Path_;
     std::unordered_set<size_t> RelatedMessages_;
     std::unordered_set<size_t> RelatedFields_;
-    std::unordered_set<size_t> RelatedTables_;
 
     std::unordered_set<size_t> PrimaryFields_;
-    std::vector<google::protobuf::FieldDescriptor::Type> IndexFields_;
 
     friend TRelationManager;
 
@@ -132,8 +122,6 @@ public:
 
     // Set parent message for a field or message
     void SetParentMessage(const TMessageBasePtr entity, const TMessageInfoPtr parent);
-
-    google::protobuf::FieldDescriptor::Type GetIndexType(const TMessagePath& path);
 
     // Clear all indexes and data
     void Clear();

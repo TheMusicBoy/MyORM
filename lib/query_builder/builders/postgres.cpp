@@ -579,12 +579,8 @@ std::string TPostgresBuilder::BuildSelect(TSelectPtr select) {
     
     // FROM
     const auto& from = select->GetFrom();
-    if (!from.empty()) {
-        oss << " FROM ";
-        for (size_t i = 0; i < from.size(); ++i) {
-            if (i > 0) oss << ", ";
-            oss << BuildClause(from[i]);
-        }
+    if (from) {
+        oss << Format(" FROM {}", BuildClause(from));
     }
     
     // JOIN
@@ -816,12 +812,7 @@ std::string TPostgresBuilder::BuildColumnDefinition(TColumnDefinitionPtr columnD
 std::string TPostgresBuilder::BuildCreateTable(TCreateTablePtr createTable) {
     auto guard = Stack_.push(NOrm::NRelation::Builder::EClauseType::CreateTable);
     
-    auto message = createTable->GetMessage();
-    if (!message) {
-        return "";
-    }
-    
-    auto table = TRelationManager::GetInstance().GetParentTable(message->GetPath());
+    auto table = createTable->GetTable();
     
     std::ostringstream oss;
     oss << Format("CREATE TABLE t_{onlydelim,delimiter='_'} (", table->GetPath().GetTable());
@@ -850,12 +841,7 @@ std::string TPostgresBuilder::BuildCreateTable(TCreateTablePtr createTable) {
 std::string TPostgresBuilder::BuildDropTable(TDropTablePtr dropTable) {
     auto guard = Stack_.push(NOrm::NRelation::Builder::EClauseType::DropTable);
     
-    auto message = dropTable->GetMessage();
-    if (!message) {
-        return "";
-    }
-    
-    return Format("DROP TABLE t_{onlydelim,delimiter='_'}", message->GetPath().GetTable());
+    return Format("DROP TABLE t_{onlydelim,delimiter='_'}", dropTable->GetTable()->GetPath().GetTable());
 }
 
 std::string TPostgresBuilder::BuildAlterTable(TAlterTablePtr alterTable) {

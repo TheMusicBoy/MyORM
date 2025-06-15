@@ -52,25 +52,6 @@ TTableInfo::TTableInfo(const TMessagePath& path, const google::protobuf::Descrip
     : Path_(path), PrimaryFields_(FindPrimaryFields(desc, Path_))
 { }
 
-TTableInfo::TTableInfo(const TMessagePath& path, const google::protobuf::FieldDescriptor* desc)
-    : Path_(path)
-{
-    auto& relationManager = TRelationManager::GetInstance();
-
-    auto parentTable = relationManager.GetParentTable(path.parent_());
-    PrimaryFields_ = parentTable->PrimaryFields_;
-    IndexFields_ = parentTable->IndexFields_;
-    parentTable->AddRelatedTable(GetHash(Path_));
-
-    if (desc->is_repeated()) {
-        IndexFields_.emplace_back(google::protobuf::FieldDescriptor::TYPE_UINT64);
-    }
-
-    if (desc->is_map()) {
-        IndexFields_.emplace_back(desc->message_type()->field(0)->type());
-    }
-}
-
 void TTableInfo::AddRelatedMessage(size_t hash) { RelatedMessages_.emplace(hash); }
 
 const std::unordered_set<size_t>& TTableInfo::GetRelatedMessages() const { return RelatedMessages_; }
@@ -79,15 +60,9 @@ void TTableInfo::AddRelatedField(size_t hash) { RelatedFields_.emplace(hash); }
 
 const std::unordered_set<size_t>& TTableInfo::GetRelatedFields() const { return RelatedFields_; }
 
-void TTableInfo::AddRelatedTable(size_t hash) { RelatedTables_.emplace(hash); }
-
-const std::unordered_set<size_t>& TTableInfo::GetRelatedTables() const { return RelatedTables_; }
-
 const TMessagePath& TTableInfo::GetPath() const { return Path_; }
 
 const std::unordered_set<size_t>& TTableInfo::GetPrimaryFields() const { return PrimaryFields_; }
-
-const std::vector<google::protobuf::FieldDescriptor::Type>& TTableInfo::GetIndexes() const { return IndexFields_; }
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -126,15 +101,7 @@ void TRelationManager::RegisterField(TFieldBasePtr field) {
     PathToEntryName_[pathHash] = field->GetFieldDescriptor()->name();
     EntryNameToEntry_[parentHash][field->GetFieldDescriptor()->name()] = field->GetPath().back();
 
-    auto fieldType = field->GetFieldType();
-    if (fieldType == EFieldType::REPEATED || fieldType == EFieldType::MAP) {
-        auto tableInfo = NCommon::New<TTableInfo>(field->GetPath(), field->GetFieldDescriptor());
-        TableByPath_[pathHash] = tableInfo;
-        ParentTable_.emplace(pathHash, pathHash);
-    } else {
-        const auto path = field->GetPath();
-        ParentTable_.emplace(pathHash, ParentTable_.at(parentHash));
-    }
+    ParentTable_.emplace(pathHash, ParentTable_.at(parentHash));
 
     if (field->IsMessage()) {
         auto messageField = std::static_pointer_cast<TFieldMessage>(field);
@@ -323,20 +290,6 @@ void TRelationManager::SetParentMessage(const TMessageBasePtr entity, const TMes
     
     // Очищаем кеши, зависящие от родительских отношений
     ObjectWithAncestorsCache_.clear();
-}
-
-google::protobuf::FieldDescriptor::Type TRelationManager::GetIndexType(const TMessagePath& path) {
-    auto pathHash = GetHash(path);
-    if (!TableByPath_.contains(pathHash)) {
-        return static_cast<google::protobuf::FieldDescriptor::Type>(0);
-    }
-
-    const auto& table = TableByPath_.at(pathHash);
-    if (table->IndexFields_.empty()) {
-        return static_cast<google::protobuf::FieldDescriptor::Type>(0);
-    }
-
-    return table->IndexFields_.back();
 }
 
 void TRelationManager::Clear() {

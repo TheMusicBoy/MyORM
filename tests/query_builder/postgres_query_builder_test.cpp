@@ -98,16 +98,12 @@ class PostgresQueryBuilderTest : public ::testing::Test {
     }
 
     std::string BuildCreateTable(NOrm::NRelation::TTableInfoPtr tableInfo) {
-        auto createTable = std::make_shared<TCreateTable>();
-        auto message = TRelationManager::GetInstance().GetMessage(tableInfo->GetPath());
-        createTable->SetMessage(message);
+        auto createTable = std::make_shared<TCreateTable>(tableInfo);
         return builder->BuildClause(createTable);
     }
 
     std::string BuildDropTable(NOrm::NRelation::TTableInfoPtr tableInfo) {
-        auto dropTable = std::make_shared<TDropTable>();
-        auto message = TRelationManager::GetInstance().GetMessage(tableInfo->GetPath());
-        dropTable->SetMessage(message);
+        auto dropTable = std::make_shared<TDropTable>(tableInfo);
         return builder->BuildClause(dropTable);
     }
 
@@ -221,12 +217,8 @@ TEST_F(PostgresQueryBuilderTest, CreateTableQuery) {
 }
 
 TEST_F(PostgresQueryBuilderTest, CreateNestedTableQuery) {
-    // Получаем NestedMessage
-    auto message = TRelationManager::GetInstance().GetMessage(nestedPath);
-    ASSERT_NE(message, nullptr);
-
     // Тестируем запрос CREATE TABLE
-    auto tableInfo = TRelationManager::GetInstance().GetParentTable(message->GetPath());
+    auto tableInfo = TRelationManager::GetInstance().GetParentTable(nestedPath);
     std::string createTableSQL = BuildCreateTable(tableInfo);
     EXPECT_TRUE(createTableSQL.find("CREATE TABLE t_2 (") != std::string::npos);
     EXPECT_TRUE(createTableSQL.find("f_1 INTEGER PRIMARY KEY") != std::string::npos);

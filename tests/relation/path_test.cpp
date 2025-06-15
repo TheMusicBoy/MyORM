@@ -237,37 +237,6 @@ TEST_F(PathTest, PathFormatting) {
     EXPECT_TRUE(!formatted.empty());
 }
 
-// Тесты для работы с индексами
-TEST_F(PathTest, IndexHandling) {
-    // Создаем путь к NestedMessage
-    TMessagePath nestedPath(2);
-    
-    // Получаем сообщение
-    auto nestedMessage = TRelationManager::GetInstance().GetMessage(nestedPath);
-    ASSERT_NE(nestedMessage, nullptr);
-    
-    // Находим repeated поле (tags)
-    TMessagePath tagsPath("nested_message/tags");
-    ASSERT_FALSE(tagsPath.empty());
-    
-    TMessagePath indexedStringPath = tagsPath / "0";
-    EXPECT_EQ(indexedStringPath.GetIndexSize(), 1);
-    EXPECT_TRUE(std::holds_alternative<int64_t>(indexedStringPath.GetIndex(0)));
-    
-    // Для всех элементов коллекции (*)
-    TMessagePath allIndexPath = tagsPath / "*";
-    EXPECT_EQ(allIndexPath.GetIndexSize(), 1);
-    EXPECT_TRUE(std::holds_alternative<TMessagePath::TAllIndex>(allIndexPath.GetIndex(0)));
-    
-    // Находим map поле (metadata)
-    TMessagePath metadataPath("nested_message/metadata");
-    ASSERT_FALSE(metadataPath.empty());
-    
-    TMessagePath mapIndexPath = metadataPath / "key1";
-    EXPECT_EQ(mapIndexPath.GetIndexSize(), 1);
-    EXPECT_TRUE(std::holds_alternative<std::string>(mapIndexPath.GetIndex(0)));
-}
-
 // Тесты для GetTablePath, GetTable, GetField с вложенными полями
 TEST_F(PathTest, NestedTableAndFieldDecomposition) {
     // Создаем путь к DeepNestedMessage

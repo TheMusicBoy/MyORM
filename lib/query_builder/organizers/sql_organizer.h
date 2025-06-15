@@ -11,8 +11,8 @@ class TSqlQueryOrganizer : public TQueryOrganizerBase {
 public:
     TSqlQueryOrganizer();
 
-    Builder::TQueryPtr OrganizeSelect(const TSelect& query) const override;
-    Builder::TQueryPtr OrganizeInsert(const TInsert& query) const override;
+    Builder::TSelectPtr OrganizeSelect(const TSelect& query) const override;
+    Builder::TInsertPtr OrganizeInsert(const TInsert& query) const override;
     Builder::TQueryPtr OrganizeUpdate(const TUpdate& query) const override;
     Builder::TQueryPtr OrganizeDelete(const TDelete& query) const override;
     
@@ -23,6 +23,10 @@ public:
     Builder::TQueryPtr CommitTransaction(const TMessagePath& table) const override;
     Builder::TQueryPtr RollbackTransaction(const TMessagePath& table) const override;
 
+private:
+    Builder::TClausePtr TransformClause(TClause clause) const;
+
+    std::vector<Builder::TClausePtr> ExpandSelector(TClause clause) const;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

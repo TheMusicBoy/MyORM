@@ -387,7 +387,7 @@ class TSelect : public TClause {
   public:
     TSelect(
         const std::vector<TClausePtr>& selectors = {},
-        const std::vector<TClausePtr>& from = {},
+        TClausePtr from = {},
         const std::vector<TClausePtr>& join = {},
         TClausePtr where = nullptr,
         TClausePtr groupBy = nullptr,
@@ -411,10 +411,10 @@ class TSelect : public TClause {
     void SetSelectors(const std::vector<TClausePtr>& selectors) {
         Selectors_ = selectors;
     }
-    const std::vector<TClausePtr>& GetFrom() const {
+    const TClausePtr& GetFrom() const {
         return From_;
     }
-    void SetFrom(const std::vector<TClausePtr>& from) {
+    void SetFrom(TClausePtr from) {
         From_ = from;
     }
     const std::vector<TClausePtr>& GetJoin() const {
@@ -456,7 +456,7 @@ class TSelect : public TClause {
 
   private:
     std::vector<TClausePtr> Selectors_;
-    std::vector<TClausePtr> From_;
+    TClausePtr From_;
     std::vector<TClausePtr> Join_;
     TClausePtr Where_;
     TClausePtr GroupBy_;
@@ -658,20 +658,20 @@ using TRollbackTransactionPtr = std::shared_ptr<TRollbackTransaction>;
 
 class TCreateTable : public TClause {
   public:
-    TCreateTable(NOrm::NRelation::TMessageInfoPtr message = nullptr)
-        : Message_(message) {}
+    TCreateTable(NOrm::NRelation::TTableInfoPtr table)
+        : Table_(table) {}
 
     EClauseType Type() const override;
 
-    NOrm::NRelation::TMessageInfoPtr GetMessage() const {
-        return Message_;
+    NOrm::NRelation::TTableInfoPtr GetTable() const {
+        return Table_;
     }
-    void SetMessage(NOrm::NRelation::TMessageInfoPtr message) {
-        Message_ = message;
+    void SetTable(NOrm::NRelation::TTableInfoPtr table) {
+        Table_ = table;
     }
 
   private:
-    NOrm::NRelation::TMessageInfoPtr Message_;
+    NOrm::NRelation::TTableInfoPtr Table_;
     friend TBuilderBase;
 };
 
@@ -679,20 +679,20 @@ using TCreateTablePtr = std::shared_ptr<TCreateTable>;
 
 class TDropTable : public TClause {
   public:
-    TDropTable(NOrm::NRelation::TMessageInfoPtr message = nullptr)
-        : Message_(message) {}
+    TDropTable(NOrm::NRelation::TTableInfoPtr table)
+        : Table_(table) {}
 
     EClauseType Type() const override;
 
-    NOrm::NRelation::TMessageInfoPtr GetMessage() const {
-        return Message_;
+    NOrm::NRelation::TTableInfoPtr GetTable() const {
+        return Table_;
     }
-    void SetMessage(NOrm::NRelation::TMessageInfoPtr message) {
-        Message_ = message;
+    void SetTable(NOrm::NRelation::TTableInfoPtr table) {
+        Table_ = table;
     }
 
   private:
-    NOrm::NRelation::TMessageInfoPtr Message_;
+    NOrm::NRelation::TTableInfoPtr Table_;
     friend TBuilderBase;
 };
 

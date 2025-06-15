@@ -16,6 +16,9 @@ struct TClauseImpl {
     
     virtual void ToProto(NOrm::NApi::TQuery* output) const = 0;
     virtual void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) = 0;
+
+    virtual NOrm::NApi::TClause::ValueCase Type() const;
+
 };
 
 class TClause {
@@ -70,6 +73,10 @@ public:
         Impl_->FromProto(input, startPoint);
     }
 
+    NOrm::NApi::TClause::ValueCase Type() const {
+        return Impl_->Type();
+    }
+
 protected:
     std::shared_ptr<TClauseImpl> Impl_;
 };
@@ -80,6 +87,7 @@ protected:
 struct TStringImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
     std::string Value_;
 };
@@ -95,6 +103,7 @@ public:
 struct TIntImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
     int32_t Value_;
 };
@@ -110,6 +119,7 @@ public:
 struct TFloatImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
     double Value_;
 };
@@ -125,6 +135,7 @@ public:
 struct TBoolImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
     bool Value_;
 };
@@ -150,6 +161,7 @@ TBool Val(bool value);
 struct TExpressionImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
     mutable std::vector<TClause> Operands_;
     NOrm::NQuery::EExpressionType ExpressionType_;
@@ -169,6 +181,7 @@ public:
 struct TAllImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
 };
 
 class TAll : public TClause {
@@ -182,6 +195,7 @@ public:
 struct TColumnImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
     TMessagePath Path_;
     NOrm::NQuery::EColumnType Type_;
@@ -201,6 +215,7 @@ public:
 struct TDefaultImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
 };
 
 class TDefault : public TClause {
@@ -217,7 +232,9 @@ public:
 struct TSelectImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
+    uint32_t Table_;
     std::vector<TClause> Selectors_;
     TClause Where_;
     TClause GroupBy_;
@@ -230,6 +247,9 @@ class TSelect : public TClause {
 public:
     TSelect() : TClause(std::make_shared<TSelectImpl>()) {}
 
+
+    TSelect& SetTableNum(uint32_t table);
+
     template <typename... Args>
     TSelect& Selectors(Args&&... args);
     
@@ -240,70 +260,52 @@ public:
     TSelect& Limit(TClause limit);
     template <typename T>
     TSelect& Limit(T limit) { return Limit(Val(limit)); }
+
+    uint32_t GetTableNum() const;
+    const std::vector<TClause>& GetSelectors() const;
+    TClause GetWhere() const;
+    TClause GetGroupBy() const;
+    TClause GetHaving() const;
+    TClause GetOrderBy() const;
+    TClause GetLimit() const;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// Значения
+// Операторы DML
 
-struct TDefaultValuesImpl : public TClauseImpl {
-    void ToProto(NOrm::NApi::TQuery* output) const override;
-    void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
-};
+struct TAttribute {
+    TMessagePath Path;
+    std::variant<bool, uint32_t, int32_t, uint64_t, int64_t, float, double, std::string, std::shared_ptr<google::protobuf::Message>> Data;
 
-class TDefaultValues : public TClause {
-public:
-    TDefaultValues() : TClause(std::make_shared<TDefaultValuesImpl>()) {}
-    
-    void ToProto(NOrm::NApi::TQuery* output) const;
-    void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint);
-};
+    void FromProto(const NOrm::NApi::TAttribute& attr);
+    NOrm::NApi::TAttribute ToProto() const;
 
-struct TValueRowsImpl : public TClauseImpl {
-    void ToProto(NOrm::NApi::TQuery* output) const override;
-    void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
-    
-    std::vector<std::vector<TClause>> Rows_;
-};
+    bool GetBool() const { return std::get<bool>(Data); }
+    void SetBool(bool value) { Data = value; }
 
-class TValueRows : public TClause {
-public:
-    TValueRows() : TClause(std::make_shared<TValueRowsImpl>()) {}
-    
-    TValueRows& AddRow(const std::vector<TClause>& row);
-    const std::vector<std::vector<TClause>>& GetRows() const;
-};
+    uint32_t GetUint32() const { return std::get<uint32_t>(Data); } 
+    void SetUint32(uint32_t value) { Data = value; }
 
-////////////////////////////////////////////////////////////////////////////////
-// Обработка конфликтов
+    int32_t GetInt32() const { return std::get<int32_t>(Data); }
+    void SetInt32(int32_t value) { Data = value; }
 
-struct TDoNothingImpl : public TClauseImpl {
-    void ToProto(NOrm::NApi::TQuery* output) const override;
-    void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
-};
+    uint64_t GetUint64() const { return std::get<uint64_t>(Data); }
+    void SetUint64(uint64_t value) { Data = value; }
 
-class TDoNothing : public TClause {
-public:
-    TDoNothing() : TClause(std::make_shared<TDoNothingImpl>()) {}
-    
-    void ToProto(NOrm::NApi::TQuery* output) const;
-    void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint);
-};
+    int64_t GetInt64() const { return std::get<int64_t>(Data); }
+    void SetInt64(int64_t value) { Data = value; }
 
-struct TDoUpdateImpl : public TClauseImpl {
-    void ToProto(NOrm::NApi::TQuery* output) const override;
-    void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
-    
-    std::vector<std::pair<TColumn, TClause>> Updates_;
-};
+    float GetFloat() const { return std::get<float>(Data); }
+    void SetFloat(float value) { Data = value; }
 
-class TDoUpdate : public TClause {
-public:
-    TDoUpdate() : TClause(std::make_shared<TDoUpdateImpl>()) {}
-    
-    TDoUpdate& AddUpdate(TColumn column, TClause expression);
-    template <typename T>
-    TDoUpdate& AddUpdate(TColumn column, T expression) { return AddUpdate(column, Val(expression)); }
-    const std::vector<std::pair<TColumn, TClause>>& GetUpdates() const;
+    double GetDouble() const { return std::get<double>(Data); }
+    void SetDouble(double value) { Data = value; }
+
+    const std::string& GetString() const { return std::get<std::string>(Data); }
+    void SetString(const std::string& value) { Data = value; }
+
+    std::shared_ptr<google::protobuf::Message> GetMessage() const { return std::get<std::shared_ptr<google::protobuf::Message>>(Data); }
+    void SetMessage(google::protobuf::Message* message) { Data = std::shared_ptr<google::protobuf::Message>(message); }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -312,63 +314,52 @@ public:
 struct TInsertImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
-    
-    std::vector<TClause> Selectors_;
-    TClause Values_;
-    TClause OnConflict_;
+    NOrm::NApi::TClause::ValueCase Type() const override;
+
+    uint32_t TableNum_ = 0;
+    std::vector<std::vector<TAttribute>> Subrequests_;
+    bool UpdateIfExists_ = false;
 };
 
 class TInsert : public TClause {
 public:
     TInsert() : TClause(std::make_shared<TInsertImpl>()) {}
     
-    template <typename... Args>
-    TInsert& Columns(Args&&... args);
+    TInsert& SetTableNum(uint32_t tableNum);
+    TInsert& AddSubrequest(const std::vector<TAttribute>& attributes);
+    TInsert& UpdateIfExists();
     
-    TInsert& Values(TClause values);
-    TInsert& OnConflict(TClause action);
-
-    TInsert& Default();
-
-    template <typename... Args>
-    TInsert& AddRow(Args&&... values) {
-        auto impl = std::dynamic_pointer_cast<TInsertImpl>(Impl_);
-        if (!impl->Values_) {
-            impl->Values_ = TValueRows();
-        }
-        TValueRows(impl->Values_).AddRow(std::vector<TClause>({Val(std::forward<Args>(values))...}));
-        return *this;
-    }
-    
-    TInsert& DoNothing();
-    TInsert& DoUpdate(TClause action);
+    uint32_t GetTableNum() const;
+    const std::vector<std::vector<TAttribute>>& GetSubrequests() const;
+    bool GetUpdateIfExists() const;
 };
 
 struct TUpdateImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
-    std::vector<std::pair<TColumn, TClause>> Updates_;
-    TClause Where_;
+    uint32_t TableNum_ = 0;
+    std::vector<std::vector<TAttribute>> Updates_;
 };
 
 class TUpdate : public TClause {
 public:
     TUpdate() : TClause(std::make_shared<TUpdateImpl>()) {}
     
-    TUpdate& AddUpdate(TColumn column, TClause expression);
-    template <typename T>
-    TUpdate& AddUpdate(TColumn column, T expression) { return AddUpdate(column, Val(expression)); }
-    TUpdate& Where(TClause conditions);
+    TUpdate& SetTableNum(uint32_t tableNum);
+    TUpdate& AddUpdate(const std::vector<TAttribute>& attributes);
     
-    const std::vector<std::pair<TColumn, TClause>>& GetUpdates() const;
-    TClause GetWhere() const;
+    uint32_t GetTableNum() const;
+    const std::vector<std::vector<TAttribute>>& GetUpdates() const;
 };
 
 struct TDeleteImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
+    uint32_t TableNum_ = 0;
     TClause Where_;
 };
 
@@ -376,13 +367,17 @@ class TDelete : public TClause {
 public:
     TDelete() : TClause(std::make_shared<TDeleteImpl>()) {}
     
+    TDelete& SetTableNum(uint32_t tableNum);
     TDelete& Where(TClause conditions);
+    
+    uint32_t GetTableNum() const;
     TClause GetWhere() const;
 };
 
 struct TTruncateImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
     uint32_t TableNum_;
 };
@@ -398,6 +393,7 @@ public:
 struct TStartTransactionImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
     
     uint32_t TableNum_;
 };
@@ -414,6 +410,7 @@ public:
 struct TCommitTransactionImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
 };
 
 class TCommitTransaction : public TClause {
@@ -427,6 +424,7 @@ public:
 struct TRollbackTransactionImpl : public TClauseImpl {
     void ToProto(NOrm::NApi::TQuery* output) const override;
     void FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) override;
+    NOrm::NApi::TClause::ValueCase Type() const override;
 };
 
 class TRollbackTransaction : public TClause {
@@ -474,13 +472,6 @@ TSelect& TSelect::Selectors(Args&&... args) {
     return *this;
 }
 
-template <typename... Args>
-TInsert& TInsert::Columns(Args&&... args) {
-    auto impl = std::dynamic_pointer_cast<TInsertImpl>(Impl_);
-    (impl->Selectors_.push_back(std::forward<Args>(args)), ...);
-    return *this;
-}
-
 // Функции-фабрики для создания объектов
 TAll All();
 TColumn Col(const TMessagePath& path);
@@ -488,13 +479,13 @@ inline TColumn Col(const std::string& path) { return Col(TMessagePath(path)); }
 TColumn Excluded(const TMessagePath& path);
 TDefault Default();
 template <typename... Args>
-TSelect Select(Args&&... args) {
-    return TSelect().Selectors(std::forward<Args>(args)...);
+TSelect Select(const std::string& path, Args&&... args) {
+    return TSelect().SetTableNum(TMessagePath(path).GetTable().front()).Selectors(std::forward<Args>(args)...);
 }
-TInsert Insert();
-TUpdate Update();
-TDelete Delete();
-TTruncate Truncate(uint32_t tableNum);
+TInsert Insert(const std::string& path);
+TUpdate Update(const std::string& path);
+TDelete Delete(const std::string& path);
+TTruncate Truncate(const std::string& path);
 TQuery CreateQuery();
 
 ////////////////////////////////////////////////////////////////////////////////
