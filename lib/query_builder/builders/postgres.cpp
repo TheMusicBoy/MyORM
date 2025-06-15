@@ -238,6 +238,12 @@ std::string TPostgresBuilder::BuildExpression(TExpressionPtr expression) {
                 BuildClause(operands[0]),
                 BuildClause(operands[1])
             );
+        case NQuery::EExpressionType::power:
+            ASSERT(operands.size() == 2, "Invalid count of operands for {} operation, must: 2, actual: {}", type, operands.size());
+            return Format("POWER({}, {})",
+                BuildClause(operands[0]),
+                BuildClause(operands[1])
+            );
             
         // Сравнения
         case NQuery::EExpressionType::equals:
@@ -437,6 +443,144 @@ std::string TPostgresBuilder::BuildExpression(TExpressionPtr expression) {
         case NQuery::EExpressionType::exists:
             ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
             return Format("EXISTS ({})", BuildClause(operands[0]));
+
+        // Строковые функции
+        case NQuery::EExpressionType::replace:
+            ASSERT(operands.size() == 3, "Invalid count of operands for {} operation, must: 3, actual: {}", type, operands.size());
+            return Format("REPLACE({}, {}, {})", 
+                BuildClause(operands[0]),
+                BuildClause(operands[1]),
+                BuildClause(operands[2])
+            );
+        case NQuery::EExpressionType::trim:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("TRIM({})", BuildClause(operands[0]));
+        case NQuery::EExpressionType::left:
+            ASSERT(operands.size() == 2, "Invalid count of operands for {} operation, must: 2, actual: {}", type, operands.size());
+            return Format("LEFT({}, {})", 
+                BuildClause(operands[0]),
+                BuildClause(operands[1])
+            );
+        case NQuery::EExpressionType::right:
+            ASSERT(operands.size() == 2, "Invalid count of operands for {} operation, must: 2, actual: {}", type, operands.size());
+            return Format("RIGHT({}, {})", 
+                BuildClause(operands[0]),
+                BuildClause(operands[1])
+            );
+        case NQuery::EExpressionType::position:
+            ASSERT(operands.size() == 2, "Invalid count of operands for {} operation, must: 2, actual: {}", type, operands.size());
+            return Format("POSITION({} IN {})", 
+                BuildClause(operands[0]),
+                BuildClause(operands[1])
+            );
+        case NQuery::EExpressionType::split_part:
+            ASSERT(operands.size() == 3, "Invalid count of operands for {} operation, must: 3, actual: {}", type, operands.size());
+            return Format("SPLIT_PART({}, {}, {})", 
+                BuildClause(operands[0]),
+                BuildClause(operands[1]),
+                BuildClause(operands[2])
+            );
+
+        // Математические функции
+        case NQuery::EExpressionType::ceil:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("CEIL({})", BuildClause(operands[0]));
+        case NQuery::EExpressionType::floor:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("FLOOR({})", BuildClause(operands[0]));
+        case NQuery::EExpressionType::sqrt:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("SQRT({})", BuildClause(operands[0]));
+        case NQuery::EExpressionType::log:
+            if (operands.size() == 1) {
+                return Format("LN({})", BuildClause(operands[0]));
+            } else if (operands.size() == 2) {
+                return Format("LOG({}, {})", BuildClause(operands[1]), BuildClause(operands[0]));
+            }
+            THROW("Invalid count of operands for {} operation, must: 1 or 2, actual: {}", type, operands.size());
+        case NQuery::EExpressionType::random:
+            ASSERT(operands.size() == 0, "Invalid count of operands for {} operation, must: 0, actual: {}", type, operands.size());
+            return "RANDOM()";
+        case NQuery::EExpressionType::sin:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("SIN({})", BuildClause(operands[0]));
+        case NQuery::EExpressionType::cos:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("COS({})", BuildClause(operands[0]));
+        case NQuery::EExpressionType::tan:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("TAN({})", BuildClause(operands[0]));
+
+        // Агрегатные функции
+        case NQuery::EExpressionType::array_agg:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("ARRAY_AGG({})", BuildClause(operands[0]));
+        case NQuery::EExpressionType::string_agg:
+            ASSERT(operands.size() == 2, "Invalid count of operands for {} operation, must: 2, actual: {}", type, operands.size());
+            return Format("STRING_AGG({}, {})", 
+                BuildClause(operands[0]),
+                BuildClause(operands[1])
+            );
+        case NQuery::EExpressionType::json_agg:
+            ASSERT(operands.size() == 1, "Invalid count of operands for {} operation, must: 1, actual: {}", type, operands.size());
+            return Format("JSON_AGG({})", BuildClause(operands[0]));
+
+        // Условные выражения
+        case NQuery::EExpressionType::case_:
+            ASSERT(operands.size() >= 3 && operands.size() % 2 == 1, "Invalid count of operands for {} operation, must be odd and >= 3, actual: {}", type, operands.size());
+            {
+                std::string result = "CASE";
+                for (size_t i = 0; i < operands.size() - 1; i += 2) {
+                    result += Format(" WHEN {} THEN {}", 
+                        BuildClause(operands[i]),
+                        BuildClause(operands[i + 1])
+                    );
+                }
+                // Last operand is the ELSE part
+                result += Format(" ELSE {} END", BuildClause(operands[operands.size() - 1]));
+                return result;
+            }
+        case NQuery::EExpressionType::greatest:
+            ASSERT(operands.size() >= 1, "Invalid count of operands for {} operation, must be >= 1, actual: {}", type, operands.size());
+            {
+                std::string result = "GREATEST(";
+                for (size_t i = 0; i < operands.size(); ++i) {
+                    if (i > 0) {
+                        result += ", ";
+                    }
+                    result += BuildClause(operands[i]);
+                }
+                result += ")";
+                return result;
+            }
+        case NQuery::EExpressionType::least:
+            ASSERT(operands.size() >= 1, "Invalid count of operands for {} operation, must be >= 1, actual: {}", type, operands.size());
+            {
+                std::string result = "LEAST(";
+                for (size_t i = 0; i < operands.size(); ++i) {
+                    if (i > 0) {
+                        result += ", ";
+                    }
+                    result += BuildClause(operands[i]);
+                }
+                result += ")";
+                return result;
+            }
+
+        // Прочие операции
+        case NQuery::EExpressionType::not_in:
+            ASSERT(operands.size() >= 2, "Invalid count of operands for {} operation, must be >= 2, actual: {}", type, operands.size());
+            {
+                std::string result = Format("{} NOT IN (", BuildClause(operands[0]));
+                for (size_t i = 1; i < operands.size(); ++i) {
+                    if (i > 1) {
+                        result += ", ";
+                    }
+                    result += BuildClause(operands[i]);
+                }
+                result += ")";
+                return result;
+            }
 
         default:
             THROW("Unknown expression type: {}", type);

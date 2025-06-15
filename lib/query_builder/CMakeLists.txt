@@ -3,6 +3,8 @@ set(SRCROOT "${PROJECT_SOURCE_DIR}/lib/query_builder")
 set(SRC
     ${SRCROOT}/builder_base.cpp
     ${SRCROOT}/builders/postgres.cpp
+    ${SRCROOT}/query_organizer_base.cpp
+    ${SRCROOT}/organizers/sql_organizer.cpp
 )
 
 add_library(query_builder STATIC ${SRC})

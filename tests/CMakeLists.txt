@@ -52,6 +52,7 @@ DEPENDS
 add_test_ex(query_builder_test
 SOURCES 
     ${TESTROOT}/query_builder/postgres_query_builder_test.cpp
+    ${TESTROOT}/query_builder/query_organizer_test.cpp
 DEPENDS
     relation
     query_builder

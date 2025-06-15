@@ -274,6 +274,25 @@ public:
 // Операторы DML
 
 struct TAttribute {
+    TAttribute();
+
+    TAttribute(const TMessagePath& path, bool value);
+    TAttribute(const TMessagePath& path, uint32_t value);
+    TAttribute(const TMessagePath& path, int32_t value);
+    TAttribute(const TMessagePath& path, uint64_t value);
+    TAttribute(const TMessagePath& path, int64_t value);
+    TAttribute(const TMessagePath& path, float value);
+    TAttribute(const TMessagePath& path, double value);
+    TAttribute(const TMessagePath& path, const std::string& value);
+    template <typename TMessageType> requires std::is_base_of_v<google::protobuf::Message, TMessageType>
+    TAttribute(const TMessagePath& path, const TMessagePath& value)
+        : Path(path) {
+        // Создаем новый экземпляр сообщения
+        auto message = new TMessageType();
+        // Устанавливаем сообщение в Data
+        Data = std::shared_ptr<google::protobuf::Message>(message);
+    }
+
     TMessagePath Path;
     std::variant<bool, uint32_t, int32_t, uint64_t, int64_t, float, double, std::string, std::shared_ptr<google::protobuf::Message>> Data;
 
@@ -482,10 +501,18 @@ template <typename... Args>
 TSelect Select(const std::string& path, Args&&... args) {
     return TSelect().SetTableNum(TMessagePath(path).GetTable().front()).Selectors(std::forward<Args>(args)...);
 }
+template <typename... Args>
+TSelect Select(const TMessagePath& path, Args&&... args) {
+    return TSelect().SetTableNum(path.GetTable().front()).Selectors(std::forward<Args>(args)...);
+}
 TInsert Insert(const std::string& path);
+TInsert Insert(const TMessagePath& path);
 TUpdate Update(const std::string& path);
+TUpdate Update(const TMessagePath& path);
 TDelete Delete(const std::string& path);
+TDelete Delete(const TMessagePath& path);
 TTruncate Truncate(const std::string& path);
+TTruncate Truncate(const TMessagePath& path);
 TQuery CreateQuery();
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -539,6 +566,13 @@ template <typename T1, typename T2> requires Clausable<T1, T2> TClause operator|
 
 TClause operator!(TClause element);
 
+TClause In(TClause element, TClause group);
+template <typename T1, typename T2> requires (!AllClause<T1, T2>)
+TClause In(T1 element, T2 group) { return In(Val(element), Val(group)); }
+
+TClause Exists(TClause subquery);
+template <typename T> requires (!isClause<T>) constexpr auto Exists(const T& element) { return Exists(Val(element)); }
+
 // Агрегатные функции
 TClause Max(TClause element);
 TClause Min(TClause element);
@@ -548,18 +582,18 @@ TClause Count(TClause element);
 
 // Математические функции
 TClause Abs(TClause element);
-template <typename T> constexpr auto Abs(const T& element) { return std::abs(element); }
+template <typename T> requires (!isClause<T>) constexpr auto Abs(const T& element) { return std::abs(element); }
 
 TClause Round(TClause element);
-template <typename T> constexpr auto Round(const T& element) { return std::round(element); }
+template <typename T> requires (!isClause<T>) constexpr auto Round(const T& element) { return std::round(element); }
 TClause Ceil(TClause element);
-template <typename T> constexpr auto Ceil(const T& element) { return std::ceil(element); }
+template <typename T> requires (!isClause<T>) constexpr auto Ceil(const T& element) { return std::ceil(element); }
 TClause Floor(TClause element);
-template <typename T> constexpr auto Floor(const T& element) { return std::floor(element); }
+template <typename T> requires (!isClause<T>) constexpr auto Floor(const T& element) { return std::floor(element); }
 TClause Sqrt(TClause element);
-template <typename T> constexpr auto Sqrt(const T& element) { return std::sqrt(element); }
+template <typename T> requires (!isClause<T>) constexpr auto Sqrt(const T& element) { return std::sqrt(element); }
 TClause Log(TClause element);
-template <typename T> constexpr auto Log(const T& element) { return std::log(element); }
+template <typename T> requires (!isClause<T>) constexpr auto Log(const T& element) { return std::log(element); }
 TClause Log(TClause element, TClause base);
 template <typename T1, typename T2> requires Clausable<T1, T2> TClause Log(T1 element, T2 base) { return Log(Val(element), Val(base)); }
 template <typename T1, typename T2> requires (!AnyClause<T1, T2>) constexpr auto Log(T1 element, T2 base) { return std::log(element, base); }
@@ -584,6 +618,13 @@ TClause SubStr(TClause string, TClause start, TClause n);
 template <typename T1, typename T2, typename T3> requires (Clausable<T1, T2, T3>)
 TClause SubStr(T1 string, T2 start, T3 n) { return SubStr(Val(string), Val(start), Val(n)); }
 std::string SubStr(const std::string& string, size_t start, size_t n);
+
+TClause Like(TClause string, TClause pattern);
+template <typename T1, typename T2> requires (!AllClause<T1, T2>)
+TClause Like(T1 string, T2 pattern) { return Like(Val(string), Val(pattern)); }
+TClause Ilike(TClause string, TClause pattern);
+template <typename T1, typename T2> requires (!AllClause<T1, T2>)
+TClause Ilike(T1 string, T2 pattern) { return Ilike(Val(string), Val(pattern)); }
 
 TClause Len(TClause string);
 size_t Len(const std::string& string);
@@ -634,14 +675,30 @@ private:
 
 [[nodiscard]] TWhenCase Case();
 
+// Conditional functions
 template <typename... Args>
-TClause Coalesce(Args&&... args);
+TClause Coalesce(Args&&... args) {
+    auto expr = TExpression();
+    expr.SetExpressionType(NOrm::NQuery::EExpressionType::coalesce);
+    (expr.AddOperand(Val(std::forward<Args>(args))), ...);
+    return expr;
+}
 
 template <typename... Args>
-TClause Greatest(Args&&... args);
+TClause Greatest(Args&&... args) {
+    auto expr = TExpression();
+    expr.SetExpressionType(NOrm::NQuery::EExpressionType::greatest);
+    (expr.AddOperand(Val(std::forward<Args>(args))), ...);
+    return expr;
+}
 
 template <typename... Args>
-TClause Least(Args&&... args);
+TClause Least(Args&&... args) {
+    auto expr = TExpression();
+    expr.SetExpressionType(NOrm::NQuery::EExpressionType::least);
+    (expr.AddOperand(Val(std::forward<Args>(args))), ...);
+    return expr;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 

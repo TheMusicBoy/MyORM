@@ -7,7 +7,7 @@ namespace NOrm::NRelation {
 ////////////////////////////////////////////////////////////////////////////////
 
 Builder::TClausePtr TSqlQueryOrganizer::TransformClause(TClause clause) const {
-    if (!clause) {
+    if (!bool(clause)) {
         return nullptr;
     }
 
@@ -56,7 +56,19 @@ Builder::TClausePtr TSqlQueryOrganizer::TransformClause(TClause clause) const {
             auto hash = GetHash(path.GetTable());
             auto& relationManager = TRelationManager::GetInstance();
             auto table = relationManager.GetParentTable(path);
+            
+            if (!table) {
+                THROW("Unable to get parent table for path: {}", path.String());
+            }
+            
             auto field = relationManager.GetPrimitiveField(path);
+            
+            if (!field) {
+                // Если field равен nullptr, используем путь напрямую
+                auto result = std::make_shared<Builder::TColumn>(table->GetPath().data(), path.GetField());
+                result->SetKeyType(Builder::EKeyType::Simple);
+                return result;
+            }
             
             auto result = std::make_shared<Builder::TColumn>(table->GetPath().data(), field->GetPath().GetField());
             result->SetKeyType(Builder::EKeyType::Simple);
@@ -112,12 +124,12 @@ Builder::TSelectPtr TSqlQueryOrganizer::OrganizeSelect(const TSelect& query) con
     std::vector<Builder::TClausePtr> selectorArray;
     for (auto id : query.GetSelectors()) {
         auto subResult = ExpandSelector(id);
-        selectorArray.insert(subResult.begin(), subResult.end(), selectorArray.end());
+        selectorArray.insert(selectorArray.end(), subResult.begin(), subResult.end());
     }
     result->SetSelectors(selectorArray);
 
     // Set from
-    result->SetFrom(std::make_shared<Builder::TTable>(GetHash(std::vector<uint32_t>{query.GetTableNum()})));
+    result->SetFrom(std::make_shared<Builder::TTable>(TMessagePath{query.GetTableNum()}));
 
     result->SetWhere(TransformClause(query.GetWhere()));
 
@@ -135,9 +147,7 @@ Builder::TSelectPtr TSqlQueryOrganizer::OrganizeSelect(const TSelect& query) con
 ////////////////////////////////////////////////////////////////////////////////
 
 Builder::TInsertPtr TSqlQueryOrganizer::OrganizeInsert(const TInsert& query) const {
-    auto tableHash = GetHash(std::vector<uint32_t>{query.GetTableNum()});
-    
-    Builder::TInsertPtr result = std::make_shared<Builder::TInsert>(tableHash);
+    Builder::TInsertPtr result = std::make_shared<Builder::TInsert>(TMessagePath(query.GetTableNum()));
     
     // Если нет подзапросов, возвращаем пустой результат
     if (query.GetSubrequests().empty()) {
@@ -264,16 +274,66 @@ Builder::TInsertPtr TSqlQueryOrganizer::OrganizeInsert(const TInsert& query) con
 ////////////////////////////////////////////////////////////////////////////////
 
 Builder::TQueryPtr TSqlQueryOrganizer::OrganizeUpdate(const TUpdate& query) const {
-    // Получаем хеш таблицы
-    auto tableHash = GetHash(std::vector<uint32_t>{query.GetTableNum()});
+    // Создаем общий объект Builder::TQuery для хранения запросов UPDATE
+    auto queryPtr = std::make_shared<Builder::TQuery>();
     
-    // Подготавливаем список пар (колонка, значение) для обновления
-    std::vector<std::pair<Builder::TClausePtr, Builder::TClausePtr>> updates;
+    // Получаем экземпляр менеджера отношений
+    auto& relationManager = TRelationManager::GetInstance();
     
-    // Обрабатываем каждый набор атрибутов
-    for (const auto& updateSet : query.GetUpdates()) {
-        for (const auto& attribute : updateSet) {
-            // Создаем колонку
+    // Для каждого набора атрибутов создаем запрос UPDATE
+    for (const auto& attributeSet : query.GetUpdates()) {
+        // Пропускаем пустые наборы атрибутов
+        if (attributeSet.empty()) {
+            continue;
+        }
+        
+        // Получаем путь к таблице
+        TMessagePath tablePath(query.GetTableNum());
+        
+        // Получаем информацию о таблице
+        auto tableInfo = relationManager.GetParentTable(tablePath);
+        if (!tableInfo) {
+            continue; // Пропускаем, если не удалось получить информацию о таблице
+        }
+        
+        // Получаем список первичных ключей таблицы
+        const auto& primaryKeys = tableInfo->GetPrimaryFields();
+        
+        // Проверяем, что все первичные ключи присутствуют в атрибутах
+        std::set<size_t> foundPrimaryKeys;
+        for (const auto& attribute : attributeSet) {
+            auto attributeHash = GetHash(attribute.Path);
+            if (primaryKeys.find(attributeHash) != primaryKeys.end()) {
+                foundPrimaryKeys.insert(attributeHash);
+            }
+        }
+        
+        // Если не все первичные ключи найдены, выбрасываем исключение
+        if (foundPrimaryKeys.size() != primaryKeys.size()) {
+            std::vector<std::string> missingKeys;
+            for (const auto& primaryKey : primaryKeys) {
+                if (foundPrimaryKeys.find(primaryKey) == foundPrimaryKeys.end()) {
+                    // Получаем информацию о поле через менеджер отношений
+                    auto field = relationManager.GetPrimitiveField(primaryKey);
+                    if (field) {
+                        missingKeys.push_back(Format("{}", field->GetPath()));
+                    } else {
+                        missingKeys.push_back(std::to_string(primaryKey));
+                    }
+                }
+            }
+            
+            THROW("Missing primary keys in UPDATE: {onlydelim}", missingKeys);
+        }
+        
+        // Разделяем атрибуты на SET и WHERE
+        std::vector<std::pair<Builder::TClausePtr, Builder::TClausePtr>> setValues;
+        std::vector<Builder::TClausePtr> whereConditions;
+        
+        for (const auto& attribute : attributeSet) {
+            auto attributeHash = GetHash(attribute.Path);
+            
+            // Создаем объект колонки для атрибута
             auto column = std::make_shared<Builder::TColumn>(attribute.Path.GetTable(), attribute.Path.GetField());
             column->SetKeyType(Builder::EKeyType::Simple);
             
@@ -312,23 +372,45 @@ Builder::TQueryPtr TSqlQueryOrganizer::OrganizeUpdate(const TUpdate& query) cons
                 auto stringValue = std::make_shared<Builder::TString>();
                 stringValue->SetValue(std::get<std::string>(attribute.Data));
                 value = stringValue;
-            } else if (std::holds_alternative<std::shared_ptr<google::protobuf::Message>>(attribute.Data)) {
-                // Для сообщений используем DEFAULT
-                value = std::make_shared<Builder::TDefault>();
             } else {
+                // Для сложных типов используем DEFAULT
                 value = std::make_shared<Builder::TDefault>();
             }
             
-            updates.emplace_back(column, value);
+            // Проверяем, является ли атрибут первичным ключом
+            if (primaryKeys.find(attributeHash) != primaryKeys.end()) {
+                // Если это первичный ключ, добавляем условие для WHERE
+                auto equalsExpr = std::make_shared<Builder::TExpression>();
+                equalsExpr->SetExpressionType(NOrm::NQuery::EExpressionType::equals);
+                equalsExpr->SetOperands({column, value});
+                whereConditions.push_back(equalsExpr);
+            } else {
+                // Если это не первичный ключ, добавляем в SET
+                setValues.push_back({column, value});
+            }
+        }
+        
+        // Создаем объект UPDATE только если есть поля для обновления
+        if (!setValues.empty()) {
+            auto updatePtr = std::make_shared<Builder::TUpdate>(tablePath);
+            updatePtr->SetUpdates(setValues);
+            
+            // Если есть условия WHERE, объединяем их оператором AND
+            if (!whereConditions.empty()) {
+                Builder::TClausePtr whereClause = whereConditions[0];
+                for (size_t i = 1; i < whereConditions.size(); ++i) {
+                    auto andExpr = std::make_shared<Builder::TExpression>();
+                    andExpr->SetExpressionType(NOrm::NQuery::EExpressionType::and_);
+                    andExpr->SetOperands({whereClause, whereConditions[i]});
+                    whereClause = andExpr;
+                }
+                updatePtr->SetWhere(whereClause);
+            }
+            
+            // Добавляем запрос UPDATE в общий объект запросов
+            queryPtr->AddClause(updatePtr);
         }
     }
-    
-    // Создаем объект Builder::TUpdate
-    auto updatePtr = std::make_shared<Builder::TUpdate>(tableHash, updates);
-    
-    // Создаем общий объект Builder::TQuery и добавляем в него обновление
-    auto queryPtr = std::make_shared<Builder::TQuery>();
-    queryPtr->AddClause(updatePtr);
     
     return queryPtr;
 }
@@ -336,14 +418,11 @@ Builder::TQueryPtr TSqlQueryOrganizer::OrganizeUpdate(const TUpdate& query) cons
 ////////////////////////////////////////////////////////////////////////////////
 
 Builder::TQueryPtr TSqlQueryOrganizer::OrganizeDelete(const TDelete& query) const {
-    // Получаем хеш таблицы
-    auto tableHash = GetHash(std::vector<uint32_t>{query.GetTableNum()});
-    
     // Преобразуем условие WHERE, если оно задано
     Builder::TClausePtr whereClause = TransformClause(query.GetWhere());
     
     // Создаем объект Builder::TDelete
-    auto deletePtr = std::make_shared<Builder::TDelete>(tableHash, whereClause);
+    auto deletePtr = std::make_shared<Builder::TDelete>(TMessagePath(query.GetTableNum()), whereClause);
     
     // Создаем общий объект Builder::TQuery и добавляем в него удаление
     auto queryPtr = std::make_shared<Builder::TQuery>();
@@ -354,12 +433,12 @@ Builder::TQueryPtr TSqlQueryOrganizer::OrganizeDelete(const TDelete& query) cons
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Builder::TQueryPtr TSqlQueryOrganizer::CreateTable(const TRootMessage& table) const {
+Builder::TQueryPtr TSqlQueryOrganizer::CreateTable(const TRootMessagePtr& table) const {
     // Получаем экземпляр менеджера отношений
     auto& relationManager = TRelationManager::GetInstance();
     
     // Получаем информацию о таблице по пути
-    auto tableInfo = relationManager.GetParentTable(table.GetPath());
+    auto tableInfo = relationManager.GetParentTable(table->GetPath());
     if (!tableInfo) {
         return nullptr;
     }
@@ -376,12 +455,12 @@ Builder::TQueryPtr TSqlQueryOrganizer::CreateTable(const TRootMessage& table) co
 
 ////////////////////////////////////////////////////////////////////////////////
 
-Builder::TQueryPtr TSqlQueryOrganizer::DeleteTable(const TRootMessage& table) const {
+Builder::TQueryPtr TSqlQueryOrganizer::DeleteTable(const TRootMessagePtr& table) const {
     // Получаем экземпляр менеджера отношений
     auto& relationManager = TRelationManager::GetInstance();
     
     // Получаем информацию о таблице по пути
-    auto tableInfo = relationManager.GetParentTable(table.GetPath());
+    auto tableInfo = relationManager.GetParentTable(table->GetPath());
     if (!tableInfo) {
         return nullptr;
     }

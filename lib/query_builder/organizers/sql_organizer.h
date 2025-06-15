@@ -16,8 +16,8 @@ public:
     Builder::TQueryPtr OrganizeUpdate(const TUpdate& query) const override;
     Builder::TQueryPtr OrganizeDelete(const TDelete& query) const override;
     
-    Builder::TQueryPtr CreateTable(const TRootMessage& table) const override;
-    Builder::TQueryPtr DeleteTable(const TRootMessage& table) const override;
+    Builder::TQueryPtr CreateTable(const TRootMessagePtr& table) const override;
+    Builder::TQueryPtr DeleteTable(const TRootMessagePtr& table) const override;
 
     Builder::TQueryPtr StartTransaction(const TMessagePath& table) const override;
     Builder::TQueryPtr CommitTransaction(const TMessagePath& table) const override;

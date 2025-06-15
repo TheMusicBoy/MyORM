@@ -19,12 +19,10 @@ TClause RegisterCluase(const NApi::TQuery& input, uint32_t startPoint) {
 
 } // namespace
 
-// Базовый метод в TClauseImpl
 NOrm::NApi::TClause::ValueCase TClauseImpl::Type() const {
     return NOrm::NApi::TClause::VALUE_NOT_SET;
 }
 
-// Helper function to create clause from proto
 TClause CreateClauseFromProto(const NApi::TQuery& input, uint32_t startPoint) {
     switch (input.clauses().at(startPoint).value_case()) {
         case NOrm::NApi::TClause::ValueCase::kString:
@@ -62,7 +60,6 @@ TClause CreateClauseFromProto(const NApi::TQuery& input, uint32_t startPoint) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TString implementation
 
 void TStringImpl::ToProto(NApi::TQuery* output) const {
     auto string = new NApi::TString();
@@ -88,7 +85,6 @@ std::string TString::GetValue() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TInt implementation
 
 void TIntImpl::ToProto(NApi::TQuery* output) const {
     auto integer = new NApi::TInt();
@@ -114,7 +110,6 @@ int32_t TInt::GetValue() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TFloat implementation
 
 void TFloatImpl::ToProto(NApi::TQuery* output) const {
     auto float_val = new NApi::TFloat();
@@ -140,7 +135,6 @@ double TFloat::GetValue() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TBool implementation
 
 void TBoolImpl::ToProto(NApi::TQuery* output) const {
     auto bool_val = new NApi::TBool();
@@ -166,7 +160,6 @@ bool TBool::GetValue() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TExpression implementation
 
 void TExpressionImpl::ToProto(NApi::TQuery* output) const {
     auto expressionVal = new NApi::TExpression();
@@ -210,14 +203,12 @@ const std::vector<TClause>& TExpression::GetOperands() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TAll implementation
 
 void TAllImpl::ToProto(NApi::TQuery* output) const {
     output->add_clauses()->mutable_all();
 }
 
 void TAllImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    // Nothing to do for TAll
 }
 
 NOrm::NApi::TClause::ValueCase TAllImpl::Type() const {
@@ -233,7 +224,6 @@ void TAll::FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TColumn implementation
 
 void TColumnImpl::ToProto(NApi::TQuery* output) const {
     auto columnVal = new NApi::TColumn();
@@ -274,14 +264,12 @@ NOrm::NQuery::EColumnType TColumn::GetType() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TDefault implementation
 
 void TDefaultImpl::ToProto(NApi::TQuery* output) const {
     output->add_clauses()->mutable_default_();
 }
 
 void TDefaultImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    // Nothing to do for TDefault
 }
 
 NOrm::NApi::TClause::ValueCase TDefaultImpl::Type() const {
@@ -297,7 +285,6 @@ void TDefault::FromProto(const NOrm::NApi::TQuery& input, uint32_t startPoint) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TSelect implementation
 
 void TSelectImpl::ToProto(NApi::TQuery* output) const {
     auto selectVal = new NApi::TSelect();
@@ -426,6 +413,53 @@ TClause TSelect::GetLimit() const {
     return std::dynamic_pointer_cast<TSelectImpl>(Impl_)->Limit_;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
+TAttribute::TAttribute() 
+    : Path()
+    , Data() {
+}
+
+TAttribute::TAttribute(const TMessagePath& path, bool value)
+    : Path(path)
+    , Data(value) {
+}
+
+TAttribute::TAttribute(const TMessagePath& path, uint32_t value)
+    : Path(path)
+    , Data(value) {
+}
+
+TAttribute::TAttribute(const TMessagePath& path, int32_t value)
+    : Path(path)
+    , Data(value) {
+}
+
+TAttribute::TAttribute(const TMessagePath& path, uint64_t value)
+    : Path(path)
+    , Data(value) {
+}
+
+TAttribute::TAttribute(const TMessagePath& path, int64_t value)
+    : Path(path)
+    , Data(value) {
+}
+
+TAttribute::TAttribute(const TMessagePath& path, float value)
+    : Path(path)
+    , Data(value) {
+}
+
+TAttribute::TAttribute(const TMessagePath& path, double value)
+    : Path(path)
+    , Data(value) {
+}
+
+TAttribute::TAttribute(const TMessagePath& path, const std::string& value)
+    : Path(path)
+    , Data(value) {
+}
+
 void TAttribute::FromProto(const NOrm::NApi::TAttribute& attr) {
     static google::protobuf::DynamicMessageFactory factory;
     auto& relationManager = NRelation::TRelationManager::GetInstance();
@@ -511,7 +545,6 @@ NOrm::NApi::TAttribute TAttribute::ToProto() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TInsert implementation
 
 void TInsertImpl::ToProto(NApi::TQuery* output) const {
     auto insert = new NApi::TInsert();
@@ -576,7 +609,6 @@ bool TInsert::GetUpdateIfExists() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TUpdate implementation
 
 void TUpdateImpl::ToProto(NApi::TQuery* output) const {
     auto update = new NApi::TUpdate();
@@ -630,7 +662,6 @@ const std::vector<std::vector<TAttribute>>& TUpdate::GetUpdates() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TDelete implementation
 
 void TDeleteImpl::ToProto(NApi::TQuery* output) const {
     auto deleteVal = new NApi::TDelete();
@@ -677,7 +708,6 @@ TClause TDelete::GetWhere() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TTruncate implementation
 
 void TTruncateImpl::ToProto(NApi::TQuery* output) const {
     auto truncate = new NApi::TTruncate();
@@ -704,7 +734,6 @@ uint32_t TTruncate::GetTableNum() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Transaction implementations
 
 void TStartTransactionImpl::ToProto(NApi::TQuery* output) const {
     auto transaction = new NApi::TStartTransaction();
@@ -712,7 +741,6 @@ void TStartTransactionImpl::ToProto(NApi::TQuery* output) const {
 }
 
 void TStartTransactionImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    // Nothing to do for now
 }
 
 NOrm::NApi::TClause::ValueCase TStartTransactionImpl::Type() const {
@@ -728,7 +756,6 @@ void TStartTransaction::FromProto(const NOrm::NApi::TQuery& input, uint32_t star
 }
 
 void TStartTransaction::SetTable(const std::string& table) {
-    // Implementation placeholder
 }
 
 void TCommitTransactionImpl::ToProto(NApi::TQuery* output) const {
@@ -737,7 +764,6 @@ void TCommitTransactionImpl::ToProto(NApi::TQuery* output) const {
 }
 
 void TCommitTransactionImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    // Nothing to do
 }
 
 NOrm::NApi::TClause::ValueCase TCommitTransactionImpl::Type() const {
@@ -758,7 +784,6 @@ void TRollbackTransactionImpl::ToProto(NApi::TQuery* output) const {
 }
 
 void TRollbackTransactionImpl::FromProto(const NApi::TQuery& input, uint32_t startPoint) {
-    // Nothing to do
 }
 
 NOrm::NApi::TClause::ValueCase TRollbackTransactionImpl::Type() const {
@@ -774,7 +799,6 @@ void TRollbackTransaction::FromProto(const NOrm::NApi::TQuery& input, uint32_t s
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TQuery implementation
 
 void TQueryImpl::ToProto(NApi::TQuery* output) const {
     for (auto& clause : Clauses_) {
@@ -786,7 +810,6 @@ void TQueryImpl::ToProto(NApi::TQuery* output) const {
 void TQueryImpl::FromProto(const NApi::TQuery& input) {
     Clauses_.clear();
     
-    // Сначала создаем все клаузы
     for (const auto& startPoint : input.start_points()) {
         Clauses_.emplace_back(CreateClauseFromProto(input, startPoint));
     }
@@ -839,7 +862,6 @@ TWhenCase Case() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Operators implementation
 
 TClause operator+(TClause lhs, TClause rhs) {
     auto expr = TExpression();
@@ -953,7 +975,23 @@ TClause operator!(TClause element) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Function implementations
+
+TClause In(TClause element, TClause group) {
+    auto expr = TExpression();
+    expr.SetExpressionType(NOrm::NQuery::EExpressionType::in);
+    expr.AddOperand(element);
+    expr.AddOperand(group);
+    return expr;
+}
+
+TClause Exists(TClause subquery) {
+    auto expr = TExpression();
+    expr.SetExpressionType(NOrm::NQuery::EExpressionType::exists);
+    expr.AddOperand(subquery);
+    return expr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 TClause Max(TClause element) {
     auto expr = TExpression();
@@ -990,7 +1028,6 @@ TClause Count(TClause element) {
     return expr;
 }
 
-// Mathematical functions
 TClause Abs(TClause element) {
     auto expr = TExpression();
     expr.SetExpressionType(NOrm::NQuery::EExpressionType::abs);
@@ -1076,7 +1113,6 @@ TClause Pow(TClause base, TClause exp) {
     return expr;
 }
 
-// String functions
 TClause Lower(TClause string) {
     auto expr = TExpression();
     expr.SetExpressionType(NOrm::NQuery::EExpressionType::lower);
@@ -1112,6 +1148,22 @@ TClause SubStr(TClause string, TClause start, TClause n) {
 
 std::string SubStr(const std::string& string, size_t start, size_t n) {
     return string.substr(start, n);
+}
+
+TClause Like(TClause string, TClause pattern) {
+    auto expr = TExpression();
+    expr.SetExpressionType(NOrm::NQuery::EExpressionType::like);
+    expr.AddOperand(string);
+    expr.AddOperand(pattern);
+    return expr;
+}
+
+TClause Ilike(TClause string, TClause pattern) {
+    auto expr = TExpression();
+    expr.SetExpressionType(NOrm::NQuery::EExpressionType::ilike);
+    expr.AddOperand(string);
+    expr.AddOperand(pattern);
+    return expr;
 }
 
 TClause Len(TClause string) {
@@ -1229,32 +1281,6 @@ std::string SplitPart(std::string string, std::string delim, size_t idx) {
     return "";
 }
 
-// Conditional functions
-template <typename... Args>
-TClause Coalesce(Args&&... args) {
-    auto expr = TExpression();
-    expr.SetExpressionType(NOrm::NQuery::EExpressionType::coalesce);
-    (expr.AddOperand(Val(std::forward<Args>(args))), ...);
-    return expr;
-}
-
-template <typename... Args>
-TClause Greatest(Args&&... args) {
-    auto expr = TExpression();
-    expr.SetExpressionType(NOrm::NQuery::EExpressionType::greatest);
-    (expr.AddOperand(Val(std::forward<Args>(args))), ...);
-    return expr;
-}
-
-template <typename... Args>
-TClause Least(Args&&... args) {
-    auto expr = TExpression();
-    expr.SetExpressionType(NOrm::NQuery::EExpressionType::least);
-    (expr.AddOperand(Val(std::forward<Args>(args))), ...);
-    return expr;
-}
-
-// Factory functions
 TClause Val(TClause clause) {
     return clause;
 }
@@ -1316,28 +1342,45 @@ TSelect Select() {
 }
 
 TInsert Insert(const std::string& path) {
+    return Insert(TMessagePath(path));
+}
+
+TInsert Insert(const TMessagePath& path) {
     auto clause = TInsert();
-    clause.SetTableNum(TMessagePath(path).back());
+    clause.SetTableNum(path.back());
     return clause;
 }
 
 TUpdate Update(const std::string& path) {
+    return Update(TMessagePath(path));
+}
+
+TUpdate Update(const TMessagePath& path) {
     auto clause = TUpdate();
-    clause.SetTableNum(TMessagePath(path).back());
+    clause.SetTableNum(path.back());
     return clause;
 }
 
 TDelete Delete(const std::string& path) {
+    return Delete(TMessagePath(path));
+}
+
+TDelete Delete(const TMessagePath& path) {
     auto clause = TDelete();
-    clause.SetTableNum(TMessagePath(path).back());
+    clause.SetTableNum(path.back());
     return clause;
 }
 
 TTruncate Truncate(const std::string& path) {
+    return Truncate(TMessagePath(path));
+}
+
+TTruncate Truncate(const TMessagePath& path) {
     auto clause = TTruncate();
-    clause.SetTableNum(TMessagePath(path).back());
+    clause.SetTableNum(path.back());
     return clause;
 }
+
 
 TQuery CreateQuery() {
     return TQuery();
